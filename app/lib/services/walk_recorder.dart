@@ -114,6 +114,11 @@ class WalkRecorder extends ChangeNotifier {
     _sub = null;
     _ticker?.cancel();
     _filter.breakSegment();
+
+    // 일시정지는 자연스러운 체크포인트다. 여기서 저장해 두면 정지 상태로
+    // 오래 두다가 앱이 죽어도 걸은 만큼은 남는다.
+    unawaited(_flush());
+
     _lastFixTs = null;
     _currentSpeedMps = 0;
     _state = RecorderState.paused;

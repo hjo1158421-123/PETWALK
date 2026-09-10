@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/course.dart';
@@ -24,7 +26,7 @@ class HistoryScreenState extends State<HistoryScreen> {
   @override
   void initState() {
     super.initState();
-    reload();
+    unawaited(reload());
   }
 
   Future<void> reload() async {
