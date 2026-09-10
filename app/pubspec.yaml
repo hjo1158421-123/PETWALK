@@ -23,6 +23,7 @@ dependencies:
 
   # 상태관리
   provider: ^6.1.2
+  sqflite_common_ffi_web: ^1.1.2
 
 dev_dependencies:
   flutter_test:

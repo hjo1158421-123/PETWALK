@@ -1,5 +1,4 @@
-import 'dart:io' show Platform;
-
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 
 enum LocationReadiness {
@@ -66,7 +65,9 @@ class LocationService {
       Geolocator.getPositionStream(locationSettings: _settings());
 
   LocationSettings _settings() {
-    if (Platform.isAndroid) {
+    // dart:io 의 Platform 대신 defaultTargetPlatform 을 쓴다.
+    // 웹에는 dart:io 가 없어서 Platform 을 참조하면 컴파일조차 되지 않는다.
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       return AndroidSettings(
         accuracy: LocationAccuracy.bestForNavigation,
         distanceFilter: distanceFilterM,
@@ -81,7 +82,9 @@ class LocationService {
       );
     }
 
-    if (Platform.isIOS || Platform.isMacOS) {
+    if (!kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.iOS ||
+            defaultTargetPlatform == TargetPlatform.macOS)) {
       return AppleSettings(
         accuracy: LocationAccuracy.bestForNavigation,
         distanceFilter: distanceFilterM,

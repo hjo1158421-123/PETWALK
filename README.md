@@ -23,9 +23,30 @@ Flutter 3.47.3 (Dart 3.13.3) 기준으로 아래까지 확인했다.
 - `flutter test` — 12개 전부 통과
 - `android/` `ios/` 네이티브 폴더 생성 및 위치 권한 설정 완료
 - `flutter build apk --release` — 성공 (50.0MB, dev.petwalk.petwalk, minSdk 24 / targetSdk 36)
+- Chrome 에서 실행 확인 — 지도, 기록 화면, 이력 화면(웹 sqlite) 정상 동작
 
 **실기기 동작은 아직 확인하지 못했다.** 특히 GPS 필터는 에뮬레이터로
 검증되지 않는다. 위치가 가짜라 노이즈 필터가 하는 일이 없다.
+
+## PC에서 UI 보기 (웹)
+
+실기기나 에뮬레이터 없이 Chrome 으로 화면을 확인할 수 있다.
+
+```bash
+cd /c/PETWALK/app && export PATH="/c/flutter/bin:$PATH" && dart run sqflite_common_ffi_web:setup
+```
+
+```bash
+cd /c/PETWALK/app && export PATH="/c/flutter/bin:$PATH" && flutter run -d chrome
+```
+
+첫 명령은 `web/sqlite3.wasm` 을 내려받는다. 한 번만 하면 된다.
+
+VS Code 를 쓴다면 Flutter 확장을 깔고 F5 를 눌러 기기 목록에서 Chrome 을
+고르면 된다. 핫 리로드가 붙어서 UI 다듬을 때 훨씬 빠르다.
+
+**웹은 UI 확인용이다.** 백그라운드 위치와 포그라운드 서비스는 웹에 개념이
+없어서 검증되지 않고, GPS 좌표에 노이즈가 없어서 필터도 하는 일이 없다.
 
 ## APK 설치
 

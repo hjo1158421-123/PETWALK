@@ -29,3 +29,8 @@ ios/Pods/
 ios/.symlinks/
 ios/Runner/GeneratedPluginRegistrant.*
 ios/ServiceDefinitions.json
+
+# sqflite 웹 런타임 (생성물)
+# dart run sqflite_common_ffi_web:setup 으로 다시 만든다
+web/sqflite_sw.js
+web/sqlite3.wasm

@@ -10,7 +10,15 @@ Future<void> main() async {
 
   // 앱이 강제 종료되면 종료 시각이 없는 산책이 남는다.
   // 지점 데이터로 통계를 복원해서 이력에 살려 둔다.
-  await WalkRepository().recoverUnfinished();
+  //
+  // 여기서 실패해도 앱은 떠야 한다. DB가 깨졌다고 화면조차 안 나오면
+  // 사용자는 원인을 알 방법이 없다.
+  try {
+    await WalkRepository().recoverUnfinished();
+  } catch (e, st) {
+    debugPrint('산책 기록 복구 실패: $e');
+    debugPrintStack(stackTrace: st);
+  }
 
   runApp(const PetWalkApp());
 }

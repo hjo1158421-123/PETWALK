@@ -1,5 +1,6 @@
-import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
+
+import 'db_platform.dart';
 
 /// 로컬 SQLite. 산책 기록은 항상 여기에 먼저 쓴다.
 ///
@@ -14,7 +15,9 @@ class AppDb {
   static Future<Database> get instance async => _db ??= await _open();
 
   static Future<Database> _open() async {
-    final path = p.join(await getDatabasesPath(), _fileName);
+    // 웹에서는 여기서 팩토리가 IndexedDB 구현으로 교체된다.
+    await initDatabaseFactory();
+    final path = await databasePathFor(_fileName);
     return openDatabase(
       path,
       version: _version,
