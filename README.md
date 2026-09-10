@@ -22,9 +22,30 @@ Flutter 3.47.3 (Dart 3.13.3) 기준으로 아래까지 확인했다.
 - `flutter analyze` — 이슈 0건
 - `flutter test` — 12개 전부 통과
 - `android/` `ios/` 네이티브 폴더 생성 및 위치 권한 설정 완료
+- `flutter build apk --release` — 성공 (50.0MB, dev.petwalk.petwalk, minSdk 24 / targetSdk 36)
 
-**빌드는 아직 검증하지 못했다.** 이 PC에 Android SDK가 없어서
-`flutter build apk` 를 돌리지 못했다. 실기기 동작 확인도 그 다음이다.
+**실기기 동작은 아직 확인하지 못했다.** 특히 GPS 필터는 에뮬레이터로
+검증되지 않는다. 위치가 가짜라 노이즈 필터가 하는 일이 없다.
+
+## APK 설치
+
+릴리스 APK는 빌드 후 아래 위치에 생성된다.
+
+```
+app/build/app/outputs/flutter-apk/app-release.apk
+```
+
+`--split-per-abi` 로 빌드하면 ABI별로 쪼개져 파일당 크기가 절반 이하가
+된다. 요즘 안드로이드폰은 대부분 `app-arm64-v8a-release.apk` 를 쓰면 된다.
+
+폰에서 파일을 받은 뒤 "알 수 없는 출처 앱 설치"를 허용하면 설치된다.
+스토어 등록도 개발자 계정도 필요 없다.
+
+iOS는 이 방식이 통하지 않는다. `.ipa` 는 코드 서명과 프로비저닝 프로파일이
+없으면 OS가 설치를 거부하고, `.ipa` 를 만드는 데 macOS + Xcode가 필요하다.
+웹에서 받아 설치하는 Ad Hoc 배포는 가능하지만 Apple Developer Program
+(연 $99)이 필요하다. Mac 없이 하려면 CI(Codemagic, GitHub Actions의
+macOS 러너)에서 빌드하면 된다.
 
 ## 개발 환경
 
