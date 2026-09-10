@@ -20,7 +20,7 @@
 Flutter 3.47.3 (Dart 3.13.3) 기준으로 아래까지 확인했다.
 
 - `flutter analyze` — 이슈 0건
-- `flutter test` — 12개 전부 통과
+- `flutter test` — 16개 전부 통과 (기기 없이 실행)
 - `android/` `ios/` 네이티브 폴더 생성 및 위치 권한 설정 완료
 - `flutter build apk --release` — 성공 (50.0MB, dev.petwalk.petwalk, minSdk 24 / targetSdk 36)
 - Chrome 에서 실행 확인 — 지도, 기록 화면, 이력 화면(웹 sqlite) 정상 동작
