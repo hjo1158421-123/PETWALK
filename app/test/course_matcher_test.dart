@@ -30,7 +30,20 @@ void main() {
       // 한 셀만 다르게 밟은 같은 길
       final b = {'wydm6q1', 'wydm6q2', 'wydm6q3', 'wydm6q4', 'wydm6q9'};
 
-      expect(CourseMatcher.jaccard(a, b),
+      expect(CourseMatcher.overlap(a, b),
+          greaterThanOrEqualTo(CourseMatcher.threshold));
+    });
+
+    test('코스가 셀을 흡수해 커져도 매칭이 유지된다', () {
+      // 여러 번 걸으면서 코스에 셀이 쌓인 상황.
+      // Jaccard였다면 합집합이 커져 0.5까지 떨어져 매칭이 깨진다.
+      final walk = {'wydm6q1', 'wydm6q2', 'wydm6q3', 'wydm6q4'};
+      final course = {
+        'wydm6q1', 'wydm6q2', 'wydm6q3', 'wydm6q4',
+        'wydm6q7', 'wydm6q8', 'wydm6q9', 'wydm6qd',
+      };
+
+      expect(CourseMatcher.overlap(walk, course),
           greaterThanOrEqualTo(CourseMatcher.threshold));
     });
 
@@ -38,16 +51,16 @@ void main() {
       final a = {'wydm6q1', 'wydm6q2', 'wydm6q3', 'wydm6q4'};
       final b = {'wydm6q3', 'wydm6q4', 'wydm6r1', 'wydm6r2'};
 
-      expect(CourseMatcher.jaccard(a, b), lessThan(CourseMatcher.threshold));
+      expect(CourseMatcher.overlap(a, b), lessThan(CourseMatcher.threshold));
     });
 
     test('겹치는 셀이 없으면 0이다', () {
-      expect(CourseMatcher.jaccard({'a'}, {'b'}), equals(0));
-      expect(CourseMatcher.jaccard({}, {'b'}), equals(0));
+      expect(CourseMatcher.overlap({'a'}, {'b'}), equals(0));
+      expect(CourseMatcher.overlap({}, {'b'}), equals(0));
     });
 
     test('같은 셀을 지나도 거리가 크게 다르면 다른 코스다', () {
-      // 한 바퀴 vs 두 바퀴는 셀 집합이 같아도 같은 코스가 아니다.
+      // 짧은 산책이 긴 코스의 일부에 얹혀 매칭되는 걸 막는 방어선이다.
       expect(CourseMatcher.distanceCompatible(2000, 4000), isFalse);
       expect(CourseMatcher.distanceCompatible(2000, 2200), isTrue);
     });

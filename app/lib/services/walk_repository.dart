@@ -249,7 +249,7 @@ class WalkRepository {
       if (!CourseMatcher.distanceCompatible(distanceM, course.distanceM)) {
         continue;
       }
-      final sim = CourseMatcher.jaccard(cells, course.cells);
+      final sim = CourseMatcher.overlap(cells, course.cells);
       if (sim > bestSim) {
         bestSim = sim;
         best = course;

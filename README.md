@@ -13,77 +13,67 @@
 - 지도에 실시간 경로 표시
 - 로컬 SQLite 저장 — 네트워크가 끊겨도 기록이 남는다
 - 산책 이력 목록 / 상세 통계
-- 같은 길을 걸으면 자동으로 코스로 묶기 (geohash + Jaccard 유사도)
+- 같은 길을 걸으면 자동으로 코스로 묶기 (geohash 셀 + 포함 계수)
 
-## 시작하기
+## 현재 상태
 
-Flutter가 아직 설치돼 있지 않다. 먼저 SDK를 설치한다.
+Flutter 3.47.3 (Dart 3.13.3) 기준으로 아래까지 확인했다.
 
-```bash
-flutter --version
-```
+- `flutter analyze` — 이슈 0건
+- `flutter test` — 12개 전부 통과
+- `android/` `ios/` 네이티브 폴더 생성 및 위치 권한 설정 완료
 
-`app/` 에는 Dart 소스와 pubspec만 있고 `android/` `ios/` 네이티브 폴더는
-아직 없다. 아래 순서로 생성한다.
+**빌드는 아직 검증하지 못했다.** 이 PC에 Android SDK가 없어서
+`flutter build apk` 를 돌리지 못했다. 실기기 동작 확인도 그 다음이다.
 
-```bash
-cd C:/PETWALK/app && git init && git add -A && git commit -m "소스 백업"
-```
+## 개발 환경
 
-```bash
-cd C:/PETWALK/app && flutter create --platforms=android,ios --org dev.petwalk --project-name petwalk .
-```
-
-`flutter create` 가 `lib/main.dart` 를 덮어쓸 수 있으니, 실행 후 `git status`
-로 확인하고 덮였으면 `git checkout lib/` 로 되돌린다.
+Flutter는 `C:\flutter` 에 설치되어 있다. 시스템 PATH에는 넣지 않았으므로
+아래 중 하나가 필요하다.
 
 ```bash
-cd C:/PETWALK/app && flutter pub get && flutter test
+export PATH="/c/flutter/bin:$PATH"
 ```
 
-## 네이티브 설정 (직접 넣어야 함)
+영구적으로 쓰려면 Windows 사용자 환경변수 `Path` 에 `C:\flutter\bin` 을
+추가하면 된다.
 
-`flutter create` 로 생성된 파일에 아래를 추가한다. 이걸 빼먹으면 화면이
-꺼진 뒤 기록이 끊긴다.
-
-### android/app/src/main/AndroidManifest.xml
-
-`<manifest>` 바로 아래:
-
-```xml
-<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
-<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
-<uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
-<uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
-<uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
-<uses-permission android:name="android.permission.WAKE_LOCK"/>
+```bash
+cd /c/PETWALK/app && export PATH="/c/flutter/bin:$PATH" && flutter test
 ```
 
-`<application>` 안:
+### 실기기에서 돌리려면
 
-```xml
-<service
-    android:name="com.baseflow.geolocator.GeolocatorLocationService"
-    android:foregroundServiceType="location"
-    android:enabled="true"
-    android:exported="false"/>
+Android Studio를 설치해 Android SDK를 갖춘 뒤
+
+```bash
+cd /c/PETWALK/app && export PATH="/c/flutter/bin:$PATH" && flutter doctor --android-licenses
 ```
 
-`compileSdk` 는 34 이상이어야 한다 (`FOREGROUND_SERVICE_LOCATION` 요구사항).
-
-### ios/Runner/Info.plist
-
-```xml
-<key>NSLocationWhenInUseUsageDescription</key>
-<string>산책 경로를 기록하기 위해 위치 정보를 사용합니다.</string>
-<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-<string>화면이 꺼진 상태에서도 산책 경로를 이어서 기록하기 위해 위치 정보를 사용합니다.</string>
-<key>UIBackgroundModes</key>
-<array>
-  <string>location</string>
-</array>
+```bash
+cd /c/PETWALK/app && export PATH="/c/flutter/bin:$PATH" && flutter run
 ```
 
+GPS 기록은 에뮬레이터에서 제대로 검증되지 않는다. 위치가 가짜라 노이즈
+필터가 하는 일이 없다. 반드시 실기기로 실제 산책을 해봐야 한다.
+
+## 네이티브 설정 (적용 완료)
+
+아래는 이미 반영되어 있다. `flutter create` 를 다시 돌리면 날아갈 수
+있으니 그때는 다시 넣어야 한다.
+
+**android/app/src/main/AndroidManifest.xml**
+`ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`,
+`ACCESS_BACKGROUND_LOCATION`, `FOREGROUND_SERVICE`,
+`FOREGROUND_SERVICE_LOCATION`, `WAKE_LOCK` 권한과
+`GeolocatorLocationService` 서비스 등록.
+
+**ios/Runner/Info.plist**
+`NSLocationWhenInUseUsageDescription`,
+`NSLocationAlwaysAndWhenInUseUsageDescription`,
+`UIBackgroundModes: location`.
+
+이걸 빼먹으면 화면이 꺼지는 순간 기록이 끊긴다.
 ## 구조
 
 ```

@@ -77,7 +77,7 @@ void main() {
       }
 
       // 워밍업으로 버리는 앞 3개 지점을 뺀 기대 거리
-      final expected = (steps - GpsFilter.warmupSkip - 1) * stepM;
+      const expected = (steps - GpsFilter.warmupSkip - 1) * stepM;
       expect(total, greaterThan(expected * 0.8));
       expect(total, lessThan(expected * 1.2));
     });
