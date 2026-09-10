@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 
 import 'db_platform.dart';
@@ -12,12 +13,24 @@ class AppDb {
 
   static Database? _db;
 
+  /// 테스트에서 DB 위치를 갈아끼우기 위한 훅.
+  /// 이게 없으면 테스트가 실제 기기 저장소를 건드린다.
+  @visibleForTesting
+  static String? pathOverride;
+
+  /// 테스트 사이에 DB를 초기 상태로 되돌린다.
+  @visibleForTesting
+  static Future<void> resetForTesting() async {
+    await _db?.close();
+    _db = null;
+  }
+
   static Future<Database> get instance async => _db ??= await _open();
 
   static Future<Database> _open() async {
     // 웹에서는 여기서 팩토리가 IndexedDB 구현으로 교체된다.
     await initDatabaseFactory();
-    final path = await databasePathFor(_fileName);
+    final path = pathOverride ?? await databasePathFor(_fileName);
     return openDatabase(
       path,
       version: _version,

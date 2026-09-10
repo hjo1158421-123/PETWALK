@@ -24,9 +24,53 @@ Flutter 3.47.3 (Dart 3.13.3) 기준으로 아래까지 확인했다.
 - `android/` `ios/` 네이티브 폴더 생성 및 위치 권한 설정 완료
 - `flutter build apk --release` — 성공 (50.0MB, dev.petwalk.petwalk, minSdk 24 / targetSdk 36)
 - Chrome 에서 실행 확인 — 지도, 기록 화면, 이력 화면(웹 sqlite) 정상 동작
+- 산책 기록 전 과정 검증 — 모의 GPS 주입으로 158m 기록(실제 156m, 오차 1.3%)
 
 **실기기 동작은 아직 확인하지 못했다.** 특히 GPS 필터는 에뮬레이터로
 검증되지 않는다. 위치가 가짜라 노이즈 필터가 하는 일이 없다.
+
+## 에디터에서 실행하기
+
+VS Code 를 쓴다. Flutter 개발에는 사실상 표준이고 이미 설치돼 있다.
+(IntelliJ IDEA Ultimate 도 Dart + Flutter 플러그인을 깔면 되지만,
+VS Code 쪽이 가볍고 설정할 게 적다.)
+
+1. VS Code 확장에서 **Flutter** 설치 (Dart 확장이 같이 딸려온다)
+2. `C:\PETWALK\app` 폴더를 연다 — 최상위가 아니라 `app` 폴더여야 한다
+3. 오른쪽 아래 상태바에서 기기를 **Chrome** 으로 고른다
+4. `F5` 를 누른다
+
+`.vscode/launch.json` 에 실행 구성이 들어 있어서 F5 만 누르면 된다.
+코드를 저장하면 핫 리로드로 화면에 즉시 반영된다.
+
+Flutter SDK 경로(`C:\flutter`)는 `.vscode/settings.json` 에 이미 적어 뒀다.
+
+## 테스트
+
+```bash
+export PATH="/c/flutter/bin:$PATH" && flutter test
+```
+
+기기 없이 돌아간다. 16개가 통과해야 정상이다.
+
+| 파일 | 무엇을 검증하나 |
+|---|---|
+| `test/track_filter_test.dart` | GPS 노이즈 제거 — 정지 드리프트, 실제 보행 거리, 이상치 |
+| `test/course_matcher_test.dart` | geohash 인코딩, 코스 동일성 판정 |
+| `test/walk_recording_flow_test.dart` | **기록 전 과정** — 좌표 수신 → 필터 → DB 저장 → 코스 묶기 |
+
+화면까지 포함한 종단 테스트는 `integration_test/app_test.dart` 에 있다.
+버튼을 실제로 눌러 화면 전환과 저장을 확인하는데, 기기나 에뮬레이터가
+있어야 돌아간다.
+
+```bash
+cd /c/PETWALK/app && export PATH="/c/flutter/bin:$PATH" && flutter test integration_test
+```
+
+둘로 나눈 이유가 있다. `testWidgets` 는 가짜 시계 위에서 도는데 sqflite 는
+실제 비동기 I/O 라서, 화면 테스트 안에서 DB 를 기다리면 영원히 끝나지 않는다.
+그래서 DB 가 얽힌 검증은 서비스 계층으로 내리고, 화면 검증은 실제 시간이
+흐르는 integration_test 로 올렸다.
 
 ## PC에서 UI 보기 (웹)
 

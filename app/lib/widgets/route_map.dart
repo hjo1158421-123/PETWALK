@@ -31,6 +31,13 @@ class RouteMap extends StatefulWidget {
   final LatLng? initialCenter;
   final bool showEndpoints;
 
+  /// 테스트에서 지도 타일을 끄기 위한 스위치.
+  ///
+  /// 위젯 테스트에서는 타일 요청이 전부 실패하는데, flutter_map 이 계속
+  /// 재시도하면서 프레임이 멈추지 않아 테스트가 끝나지 않는다.
+  @visibleForTesting
+  static bool tilesEnabled = true;
+
   @override
   State<RouteMap> createState() => _RouteMapState();
 }
@@ -103,11 +110,12 @@ class _RouteMapState extends State<RouteMap> {
         ),
       ),
       children: [
-        TileLayer(
-          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-          userAgentPackageName: 'dev.petwalk.app',
-          maxNativeZoom: 19,
-        ),
+        if (RouteMap.tilesEnabled)
+          TileLayer(
+            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+            userAgentPackageName: 'dev.petwalk.app',
+            maxNativeZoom: 19,
+          ),
         PolylineLayer(
           polylines: [
             for (final seg in widget.segments)

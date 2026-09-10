@@ -24,12 +24,16 @@ Future<void> main() async {
 }
 
 class PetWalkApp extends StatelessWidget {
-  const PetWalkApp({super.key});
+  const PetWalkApp({super.key, this.recorderFactory});
+
+  /// 테스트에서 가짜 위치 서비스를 물린 레코더를 넣기 위한 주입 지점.
+  /// 비워 두면 실제 GPS 를 쓰는 기본 레코더가 만들어진다.
+  final WalkRecorder Function()? recorderFactory;
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => WalkRecorder(),
+      create: (_) => recorderFactory?.call() ?? WalkRecorder(),
       child: MaterialApp(
         title: 'PETWALK',
         debugShowCheckedModeBanner: false,
