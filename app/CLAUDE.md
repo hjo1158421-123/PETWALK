@@ -40,7 +40,7 @@
       어떤 값에 근거가 있고 없는지는
       [docs/권장산책량-근거.md](docs/권장산책량-근거.md) 에 정리돼 있다.
 
-`flutter analyze` 0건, `flutter test` 45개 통과 상태를 유지할 것.
+`flutter analyze` 0건, `flutter test` 56개 통과 상태를 유지할 것.
 
 ## 다음 작업: 추천 엔진
 
@@ -83,6 +83,10 @@
 
 - **에뮬레이터를 쓸 수 없다.** BIOS 에서 AMD-V(SVM)가 꺼져 있다.
   사용자가 직접 켜야 한다.
+- 그래서 **가짜 GPS** 로 기록 흐름을 확인한다. 산책 탭 위쪽의
+  "가짜 GPS로 산책해 보기" 를 켜고 산책을 시작하면 저절로 걷는다.
+  `kDebugMode` 라 릴리스에는 없다. 여기서 만든 기록은 이력에 그대로 남으니
+  확인 후 지울 것. (`lib/services/simulated_location_service.dart`)
 - **iOS 빌드를 할 수 없다.** Windows 에 Xcode 가 없다. 사용자 폰은 iOS 라
   실기기 확인이 막혀 있다.
 - 그래서 **PC 확인은 Chrome(웹)으로 한다.**
@@ -128,6 +132,7 @@ services/
   dog_repository.dart   반려견 CRUD + 산책 연결
   course_matcher.dart   같은 길인지 판정하는 규칙
   location_service.dart GPS 스트림 + 권한 + 플랫폼별 설정
+  simulated_location_service.dart 가짜 GPS. 개발용(kDebugMode)
   theme_controller.dart 고른 테마 보관 + 저장
   db.dart               스키마 v2 + 마이그레이션
   db_platform*.dart     웹/네이티브 sqflite 분기

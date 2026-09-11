@@ -21,8 +21,25 @@ class WalkRecorder extends ChangeNotifier {
   })  : _location = location ?? LocationService(),
         _repo = repository ?? WalkRepository();
 
-  final LocationService _location;
+  LocationService _location;
   final WalkRepository _repo;
+
+  LocationService get location => _location;
+
+  /// 좌표 출처를 바꾼다. 개발 중 가짜 GPS 로 기록 흐름을 확인하기 위한
+  /// 교체 지점이다.
+  ///
+  /// **기록 중에는 바꿀 수 없다.** 중간에 출처가 바뀌면 이미 구독 중인
+  /// 스트림과 새 스트림의 좌표가 섞여 경로가 엉뚱한 곳으로 튄다.
+  set location(LocationService next) {
+    if (_state != RecorderState.idle) {
+      throw StateError('산책 중에는 위치 서비스를 바꿀 수 없습니다 (현재: $_state)');
+    }
+    if (identical(_location, next)) return;
+    _location = next;
+    // 화면이 "지금 가짜 GPS 인지"를 표시하므로 바뀐 걸 알려야 한다.
+    notifyListeners();
+  }
   final DogRepository _dogs = DogRepository();
 
   /// 이번 산책에 함께 나간 반려견. 시작할 때 정해진다.

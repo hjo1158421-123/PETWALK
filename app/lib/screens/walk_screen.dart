@@ -1,9 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/walk.dart';
 import '../services/dog_repository.dart';
 import '../services/location_service.dart';
+import '../services/simulated_location_service.dart';
 import '../services/theme_controller.dart';
 import '../services/walk_recorder.dart';
 import '../theme/app_theme.dart';
@@ -37,6 +39,12 @@ class WalkScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const _ThemeSwitchButton(),
+                // 릴리스 빌드에는 들어가지 않는다. 가짜 좌표로 만든 기록이
+                // 실제 사용자 이력에 섞이면 안 된다.
+                if (kDebugMode) ...[
+                  const SizedBox(height: 10),
+                  const _SimulateWalkButton(),
+                ],
                 if (recorder.isActive) ...[
                   const SizedBox(height: 10),
                   _AccuracyBanner(recorder: recorder),
@@ -112,6 +120,107 @@ class _ThemeSwitchButton extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// 실제로 걷지 않고 산책 기록 흐름을 확인하는 개발용 버튼.
+///
+/// 이 PC 에서는 에뮬레이터도 iOS 실기기도 쓸 수 없어서, 기록이 끝까지
+/// 이어지는지 볼 방법이 이것뿐이다. `kDebugMode` 로 감싸 릴리스에서는
+/// 보이지 않는다.
+class _SimulateWalkButton extends StatelessWidget {
+  const _SimulateWalkButton();
+
+  @override
+  Widget build(BuildContext context) {
+    final recorder = context.watch<WalkRecorder>();
+    final tokens = PetWalkTokens.of(context);
+    final simulating = recorder.location is SimulatedLocationService;
+
+    // 기록 중에는 출처를 바꿀 수 없다. 켜고 끄는 건 멈춰 있을 때만.
+    final canToggle = recorder.state == RecorderState.idle;
+
+    return Material(
+      color: simulating
+          ? const Color(0xFFFFE08A)
+          : (Theme.of(context).cardTheme.color ?? Colors.white),
+      elevation: tokens.usesHairline ? 0 : 3,
+      shadowColor: const Color(0x224A3B31),
+      borderRadius: BorderRadius.circular(tokens.buttonRadius),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(tokens.buttonRadius),
+        onTap: canToggle ? () => _toggle(context, recorder, simulating) : null,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(tokens.buttonRadius),
+            border:
+                tokens.usesHairline ? Border.all(color: tokens.hairline) : null,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                simulating ? Icons.science : Icons.science_outlined,
+                size: 20,
+                color: simulating ? const Color(0xFF7A5A00) : tokens.muted,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      simulating ? '가짜 GPS 켜짐 (개발용)' : '가짜 GPS로 산책해 보기',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            color: simulating ? const Color(0xFF7A5A00) : null,
+                          ),
+                    ),
+                    Text(
+                      simulating
+                          ? '아래 "산책 시작"을 누르면 저절로 걸어요'
+                          : '실제로 걷지 않아도 기록이 쌓입니다',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: simulating
+                                ? const Color(0xFF7A5A00)
+                                : tokens.muted,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: simulating,
+                onChanged: canToggle
+                    ? (_) => _toggle(context, recorder, simulating)
+                    : null,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _toggle(
+      BuildContext context, WalkRecorder recorder, bool simulating) {
+    final messenger = ScaffoldMessenger.of(context);
+    final previous = recorder.location;
+
+    if (simulating) {
+      if (previous is SimulatedLocationService) previous.dispose();
+      recorder.location = LocationService();
+      messenger.showSnackBar(
+        const SnackBar(content: Text('실제 GPS로 돌아왔어요.')),
+      );
+    } else {
+      recorder.location = SimulatedLocationService();
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('가짜 GPS로 바꿨어요. 여기서 만든 기록은 이력에 그대로 남으니 확인 후 지워 주세요.'),
+          duration: Duration(seconds: 5),
+        ),
+      );
+    }
   }
 }
 
