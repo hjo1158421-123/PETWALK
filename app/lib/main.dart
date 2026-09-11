@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import 'screens/home_screen.dart';
+import 'services/theme_controller.dart';
 import 'services/walk_recorder.dart';
 import 'services/walk_repository.dart';
+import 'theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,7 +23,37 @@ Future<void> main() async {
     debugPrintStack(stackTrace: st);
   }
 
+  await _warmUpFonts();
+
   runApp(const PetWalkApp());
+}
+
+/// 두 테마의 글꼴을 미리 받아 둔다.
+///
+/// 글꼴이 첫 프레임보다 늦게 도착하면, 대체 글꼴로 재 놓은 글자 크기와
+/// 실제로 그릴 글자 크기가 어긋나 렌더링이 한 번 깨진다
+/// (`debugSize == size` assertion).
+///
+/// **쓰는 쪽만 받아서는 안 된다.** 테마를 바꾸는 순간 반대편 글꼴을 처음
+/// 받게 되어 같은 문제가 다시 난다. 그래서 두 벌을 모두 미리 받는다.
+///
+/// 실패해도 앱은 떠야 한다. 지하철이나 산 속에서 앱이 아예 안 뜨는 것보다
+/// 대체 글꼴로 뜨는 편이 낫다. 타임아웃을 두는 이유도 같다 — 느린 망에서
+/// 흰 화면을 오래 보여 주지 않는다.
+Future<void> _warmUpFonts() async {
+  try {
+    // 게터를 불러야 내려받기가 시작된다. pendingFonts 는 이미 시작된
+    // 것만 기다리므로 순서가 중요하다.
+    GoogleFonts.poorStory();
+    GoogleFonts.gowunDodum();
+    GoogleFonts.blackHanSans();
+    GoogleFonts.ibmPlexSansKr();
+    GoogleFonts.ibmPlexMono();
+
+    await GoogleFonts.pendingFonts().timeout(const Duration(seconds: 5));
+  } catch (e) {
+    debugPrint('글꼴을 미리 받지 못했습니다 (대체 글꼴로 표시됩니다): $e');
+  }
 }
 
 class PetWalkApp extends StatelessWidget {
@@ -32,21 +65,23 @@ class PetWalkApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => recorderFactory?.call() ?? WalkRecorder(),
-      child: MaterialApp(
-        title: 'PETWALK',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorSchemeSeed: const Color(0xFF3DA35D),
-          useMaterial3: true,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (_) => recorderFactory?.call() ?? WalkRecorder(),
         ),
-        darkTheme: ThemeData(
-          colorSchemeSeed: const Color(0xFF3DA35D),
-          brightness: Brightness.dark,
-          useMaterial3: true,
+        ChangeNotifierProvider(create: (_) => ThemeController()..load()),
+      ],
+      child: Consumer<ThemeController>(
+        builder: (_, themeController, __) => MaterialApp(
+          title: 'PETWALK',
+          debugShowCheckedModeBanner: false,
+          theme: buildTheme(themeController.variant),
+          // 두 안 모두 종이/크림 톤을 전제로 설계됐다. 다크 모드는 색을
+          // 처음부터 다시 잡아야 해서 지금은 두지 않는다.
+          themeMode: ThemeMode.light,
+          home: const HomeScreen(),
         ),
-        home: const HomeScreen(),
       ),
     );
   }

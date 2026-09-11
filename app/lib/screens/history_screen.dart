@@ -7,6 +7,7 @@ import '../models/walk.dart';
 import '../models/dog.dart';
 import '../services/dog_repository.dart';
 import '../services/walk_repository.dart';
+import '../theme/app_theme.dart';
 import '../utils/format.dart';
 import 'course_detail_screen.dart';
 import 'walk_detail_screen.dart';
@@ -104,24 +105,27 @@ class _Summary extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _cell(context, '최근 7일', '${recent.length}회'),
-          _cell(context, '총 거리', Fmt.distance(totalM)),
-          _cell(context, '총 시간', Fmt.duration(totalSec)),
+          _cell(context, 'LAST 7 DAYS', '최근 7일', '${recent.length}회'),
+          _cell(context, 'DISTANCE', '총 거리', Fmt.distance(totalM)),
+          _cell(context, 'TIME', '총 시간', Fmt.duration(totalSec)),
         ],
       ),
     );
   }
 
-  Widget _cell(BuildContext context, String label, String value) {
-    final theme = Theme.of(context);
+  /// 1b 는 캡션이 모노스페이스 대문자라 라벨을 두 벌 받는다.
+  Widget _cell(
+      BuildContext context, String monoLabel, String label, String value) {
+    final tokens = PetWalkTokens.of(context);
+    final minimal = tokens.variant == AppThemeVariant.minimal;
+
     return Column(
+      crossAxisAlignment:
+          minimal ? CrossAxisAlignment.start : CrossAxisAlignment.center,
       children: [
-        Text(value,
-            style: theme.textTheme.titleMedium
-                ?.copyWith(fontWeight: FontWeight.w600)),
-        Text(label,
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        Text(value, style: tokens.display.copyWith(fontSize: 24)),
+        const SizedBox(height: 3),
+        Text(minimal ? monoLabel : label, style: tokens.caption),
       ],
     );
   }
@@ -162,7 +166,7 @@ class _WalkList extends StatelessWidget {
             ),
             title: Text(
               Fmt.distance(w.distanceM),
-              style: const TextStyle(fontWeight: FontWeight.w600),
+              style: PetWalkTokens.of(context).display.copyWith(fontSize: 20),
             ),
             subtitle: Text([
               Fmt.duration(w.totalSec),

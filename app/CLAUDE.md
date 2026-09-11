@@ -40,7 +40,7 @@
       어떤 값에 근거가 있고 없는지는
       [docs/권장산책량-근거.md](docs/권장산책량-근거.md) 에 정리돼 있다.
 
-`flutter analyze` 0건, `flutter test` 35개 통과 상태를 유지할 것.
+`flutter analyze` 0건, `flutter test` 45개 통과 상태를 유지할 것.
 
 ## 다음 작업: 추천 엔진
 
@@ -119,6 +119,8 @@ VS Code 는 F5 → `PETWALK (web-server :8080)`.
 ```
 models/      Walk, TrackPoint, Course, Dog, WalkGoal
 data/        breed_catalog.dart  견종 48종 (크기/활동량/단두종)
+theme/
+  app_theme.dart        1a(포근)/1b(미니멀) 두 안. 토큰만 갈아끼운다
 services/
   track_filter.dart     GPS 노이즈 제거. 정확도의 핵심
   walk_recorder.dart    기록 상태 기계. 화면은 여기만 본다
@@ -126,6 +128,7 @@ services/
   dog_repository.dart   반려견 CRUD + 산책 연결
   course_matcher.dart   같은 길인지 판정하는 규칙
   location_service.dart GPS 스트림 + 권한 + 플랫폼별 설정
+  theme_controller.dart 고른 테마 보관 + 저장
   db.dart               스키마 v2 + 마이그레이션
   db_platform*.dart     웹/네이티브 sqflite 분기
 screens/     산책 / 이력 / 상세 / 코스 / 우리 아이 / 프로필 편집

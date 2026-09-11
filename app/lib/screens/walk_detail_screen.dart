@@ -8,6 +8,7 @@ import '../models/walk.dart';
 import '../models/dog.dart';
 import '../services/dog_repository.dart';
 import '../services/walk_repository.dart';
+import '../theme/app_theme.dart';
 import '../utils/format.dart';
 import '../widgets/route_map.dart';
 
@@ -207,9 +208,9 @@ class _WalkDetailScreenState extends State<WalkDetailScreen> {
               title: Text(label),
               trailing: Text(
                 value,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontFeatures: [FontFeature.tabularFigures()],
+                style: PetWalkTokens.of(context).display.copyWith(
+                  fontSize: 18,
+                  fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
             ),
@@ -220,7 +221,7 @@ class _WalkDetailScreenState extends State<WalkDetailScreen> {
             subtitle: const Text('높을수록 강아지가 여유롭게 탐색한 산책이에요'),
             trailing: Text(
               Fmt.percent(walk.sniffRatio),
-              style: const TextStyle(fontWeight: FontWeight.w600),
+              style: PetWalkTokens.of(context).display.copyWith(fontSize: 18),
             ),
           ),
         ],

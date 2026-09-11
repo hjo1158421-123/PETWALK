@@ -4,6 +4,7 @@ import '../data/breed_catalog.dart';
 import '../models/dog.dart';
 import '../models/walk_goal.dart';
 import '../services/dog_repository.dart';
+import '../theme/app_theme.dart';
 import '../utils/format.dart';
 
 /// 반려견 프로필을 새로 만들거나 고친다.
@@ -465,15 +466,15 @@ class _GoalPreview extends StatelessWidget {
     );
   }
 
-  Widget _stat(BuildContext context, String label, String value) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(value,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleLarge
-                  ?.copyWith(fontWeight: FontWeight.w600)),
-          Text(label, style: Theme.of(context).textTheme.bodySmall),
-        ],
-      );
+  Widget _stat(BuildContext context, String label, String value) {
+    final tokens = PetWalkTokens.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(value, style: tokens.display.copyWith(fontSize: 26)),
+        const SizedBox(height: 3),
+        Text(label, style: tokens.caption),
+      ],
+    );
+  }
 }

@@ -25,6 +25,14 @@ dependencies:
   provider: ^6.1.2
   sqflite_common_ffi_web: ^1.1.2
 
+  # 테마
+  # 두 테마의 인상 차이가 대부분 글꼴에서 온다. 손글씨(Poor Story)와
+  # 초굵은 고딕(Black Han Sans)을 빼면 두 안이 거의 같아 보인다.
+  google_fonts: ^6.2.1
+  # 테마 선택은 앱을 껐다 켜도 남아야 한다. 이것 하나 때문에 DB 스키마를
+  # 올리는 건 과하다.
+  shared_preferences: ^2.3.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

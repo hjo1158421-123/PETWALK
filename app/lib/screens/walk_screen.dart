@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 import '../models/walk.dart';
 import '../services/dog_repository.dart';
 import '../services/location_service.dart';
+import '../services/theme_controller.dart';
 import '../services/walk_recorder.dart';
+import '../theme/app_theme.dart';
 import '../utils/format.dart';
 import '../widgets/route_map.dart';
 import '../widgets/stat_tile.dart';
@@ -27,18 +29,87 @@ class WalkScreen extends StatelessWidget {
               follow: recorder.state == RecorderState.recording,
             ),
           ),
-          if (recorder.isActive)
-            Positioned(
-              top: MediaQuery.of(context).padding.top + 12,
-              left: 16,
-              right: 16,
-              child: _AccuracyBanner(recorder: recorder),
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 12,
+            left: 16,
+            right: 16,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const _ThemeSwitchButton(),
+                if (recorder.isActive) ...[
+                  const SizedBox(height: 10),
+                  _AccuracyBanner(recorder: recorder),
+                ],
+              ],
             ),
+          ),
           Align(
             alignment: Alignment.bottomCenter,
             child: _ControlPanel(recorder: recorder),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 앱 전체 테마를 바꾸는 버튼. 산책 화면 최상단에 둔다.
+///
+/// 설정 화면 안쪽에 묻어 두면 두 안을 견줘 보기가 번거롭다. 지금은 어느
+/// 쪽이 나은지 고르는 단계라 한 번에 눌러 보고 바로 비교할 수 있어야 한다.
+/// 결정이 끝나면 "우리 아이" 탭의 설정 목록으로 옮길 자리다.
+class _ThemeSwitchButton extends StatelessWidget {
+  const _ThemeSwitchButton();
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = context.watch<ThemeController>();
+    final tokens = PetWalkTokens.of(context);
+    final next = controller.variant.next;
+
+    return Material(
+      color: Theme.of(context).cardTheme.color ?? Colors.white,
+      elevation: tokens.usesHairline ? 0 : 3,
+      shadowColor: const Color(0x224A3B31),
+      borderRadius: BorderRadius.circular(tokens.buttonRadius),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(tokens.buttonRadius),
+        onTap: controller.toggle,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(tokens.buttonRadius),
+            border: tokens.usesHairline
+                ? Border.all(color: tokens.hairline)
+                : null,
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.palette_outlined, size: 20, color: tokens.accentText),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      controller.variant.label,
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    Text(
+                      '${next.label}(으)로 바꾸기',
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: tokens.muted),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.swap_horiz, size: 20, color: tokens.muted),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -93,35 +164,96 @@ class _ControlPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final tokens = PetWalkTokens.of(context);
+    final minimal = tokens.variant == AppThemeVariant.minimal;
 
-    return Card(
-      margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-      elevation: 6,
+    final stats = [
+      StatTile(
+        label: minimal ? 'DISTANCE' : '거리',
+        value: Fmt.distance(recorder.distanceM),
+        emphasize: true,
+        alignment:
+            minimal ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+      ),
+      StatTile(
+        label: minimal ? 'TIME' : '시간',
+        value: Fmt.duration(recorder.elapsedSec),
+        emphasize: true,
+        alignment:
+            minimal ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+      ),
+      StatTile(
+        label: minimal ? 'PACE' : '페이스',
+        value: Fmt.pace(recorder.avgSpeedMps),
+        emphasize: true,
+        alignment:
+            minimal ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+      ),
+    ];
+
+    return Container(
+      // 1a 는 화면에서 떠 있는 둥근 카드, 1b 는 바닥에 붙어 선으로만
+      // 나뉘는 면이다. 여백부터 다르다.
+      margin: minimal
+          ? EdgeInsets.zero
+          : const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      decoration: BoxDecoration(
+        color: minimal ? theme.colorScheme.surface : Colors.white,
+        borderRadius:
+            minimal ? null : BorderRadius.circular(tokens.cardRadius + 2),
+        border: minimal
+            ? Border(top: BorderSide(color: tokens.hairline))
+            : null,
+        boxShadow: minimal
+            ? null
+            : const [
+                BoxShadow(
+                  color: Color(0x1F4A3B31),
+                  blurRadius: 20,
+                  offset: Offset(0, 8),
+                ),
+              ],
+      ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                StatTile(
-                  label: '거리',
-                  value: Fmt.distance(recorder.distanceM),
-                  emphasize: true,
+            if (minimal)
+              // 1b 는 수치 사이를 세로 1px 선으로 나눈다.
+              IntrinsicHeight(
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.symmetric(
+                      horizontal: BorderSide(color: tokens.hairline),
+                    ),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  child: Row(
+                    children: [
+                      for (var i = 0; i < stats.length; i++)
+                        Expanded(
+                          child: Container(
+                            padding: EdgeInsets.only(left: i == 0 ? 0 : 14),
+                            decoration: i == 0
+                                ? null
+                                : BoxDecoration(
+                                    border: Border(
+                                      left: BorderSide(color: tokens.hairline),
+                                    ),
+                                  ),
+                            child: stats[i],
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-                StatTile(
-                  label: '시간',
-                  value: Fmt.duration(recorder.elapsedSec),
-                  emphasize: true,
-                ),
-                StatTile(
-                  label: '페이스',
-                  value: Fmt.pace(recorder.avgSpeedMps),
-                  emphasize: true,
-                ),
-              ],
-            ),
+              )
+            else
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [for (final s in stats) s],
+              ),
             if (recorder.isActive) ...[
               const SizedBox(height: 8),
               Text(

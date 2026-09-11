@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../models/dog.dart';
 import '../models/walk_goal.dart';
 import '../services/dog_repository.dart';
+import '../theme/app_theme.dart';
 import '../utils/format.dart';
 import 'dog_edit_screen.dart';
 
@@ -149,6 +150,7 @@ class _DogCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final tokens = PetWalkTokens.of(context);
     final goal = WalkGoal.forDog(dog);
 
     // 최근 7일 실적을 하루 권장량 x 7 과 견준다.
@@ -213,17 +215,23 @@ class _DogCard extends StatelessWidget {
               ),
               Text(
                 '${(progress * 100).round()}%',
-                style: theme.textTheme.labelLarge
-                    ?.copyWith(fontWeight: FontWeight.w600),
+                style: tokens.display.copyWith(fontSize: 20),
               ),
             ],
           ),
           const SizedBox(height: 6),
+          // 1a 는 둥근 막대, 1b 는 각진 막대. 두 안이 갈리는 지점이라
+          // 토큰의 모서리 값을 그대로 쓴다.
           ClipRRect(
-            borderRadius: BorderRadius.circular(4),
+            borderRadius:
+                BorderRadius.circular(tokens.usesHairline ? 0 : 999),
             child: LinearProgressIndicator(
               value: progress,
-              minHeight: 6,
+              minHeight: tokens.usesHairline ? 8 : 14,
+              backgroundColor: tokens.usesHairline
+                  ? tokens.hairline
+                  : theme.colorScheme.surfaceContainerHighest,
+              valueColor: AlwaysStoppedAnimation(tokens.accent),
             ),
           ),
           const SizedBox(height: 10),

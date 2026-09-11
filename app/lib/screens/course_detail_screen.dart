@@ -6,6 +6,7 @@ import '../models/course.dart';
 import '../models/track_point.dart';
 import '../models/walk.dart';
 import '../services/walk_repository.dart';
+import '../theme/app_theme.dart';
 import '../utils/format.dart';
 import '../widgets/route_map.dart';
 import 'walk_detail_screen.dart';
@@ -147,15 +148,12 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
   }
 
   Widget _cell(BuildContext context, String label, String value) {
-    final theme = Theme.of(context);
+    final tokens = PetWalkTokens.of(context);
     return Column(
       children: [
-        Text(value,
-            style: theme.textTheme.titleMedium
-                ?.copyWith(fontWeight: FontWeight.w600)),
-        Text(label,
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        Text(value, style: tokens.display.copyWith(fontSize: 22)),
+        const SizedBox(height: 3),
+        Text(label, style: tokens.caption),
       ],
     );
   }
