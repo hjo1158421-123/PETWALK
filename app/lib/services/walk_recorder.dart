@@ -8,6 +8,7 @@ import '../models/walk.dart';
 import 'geo.dart';
 import 'location_service.dart';
 import 'track_filter.dart';
+import 'dog_repository.dart';
 import 'walk_repository.dart';
 
 enum RecorderState { idle, starting, recording, paused, saving }
@@ -22,6 +23,11 @@ class WalkRecorder extends ChangeNotifier {
 
   final LocationService _location;
   final WalkRepository _repo;
+  final DogRepository _dogs = DogRepository();
+
+  /// 이번 산책에 함께 나간 반려견. 시작할 때 정해진다.
+  List<int> _dogIds = const [];
+  List<int> get dogIds => _dogIds;
 
   /// 지점 몇 개마다 DB에 flush 할지. 매 지점 insert 하면 IO가 과하다.
   static const int _flushEvery = 10;
@@ -78,7 +84,9 @@ class WalkRecorder extends ChangeNotifier {
 
   /// 기록을 시작한다. 권한 문제가 있으면 [LocationReadiness]를 돌려주고
   /// 상태는 idle로 되돌린다.
-  Future<LocationReadiness> start() async {
+  /// [dogIds] 는 이번 산책에 함께 나가는 반려견들이다.
+  /// 등록된 반려견이 없어도 기록 자체는 가능해야 해서 비워 둘 수 있다.
+  Future<LocationReadiness> start({List<int> dogIds = const []}) async {
     if (isActive) return LocationReadiness.ready;
 
     _state = RecorderState.starting;
@@ -93,6 +101,7 @@ class WalkRecorder extends ChangeNotifier {
     }
 
     _reset();
+    _dogIds = List.unmodifiable(dogIds);
     _startedAt = DateTime.now();
     _walkId = await _repo.createWalk(_startedAt!);
     _segments.add([]);
@@ -172,6 +181,8 @@ class WalkRecorder extends ChangeNotifier {
     );
 
     await _repo.updateWalk(walk);
+
+    await _dogs.linkWalk(walkId, _dogIds);
 
     final courseId = await _repo.attachToCourse(walk);
     if (courseId != null) {
@@ -272,6 +283,7 @@ class WalkRecorder extends ChangeNotifier {
 
   void _reset() {
     _walkId = null;
+    _dogIds = const [];
     _startedAt = null;
     _filter = GpsFilter();
     _segments.clear();

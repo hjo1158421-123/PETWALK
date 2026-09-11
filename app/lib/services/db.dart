@@ -9,7 +9,7 @@ import 'db_platform.dart';
 /// 서버 동기화는 나중에 별도 단계로 붙인다.
 class AppDb {
   static const _fileName = 'petwalk.db';
-  static const _version = 1;
+  static const _version = 2;
 
   static Database? _db;
 
@@ -35,6 +35,15 @@ class AppDb {
       path,
       version: _version,
       onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
+      onUpgrade: (db, from, to) async {
+        // 이미 산책 기록이 쌓인 기기에서도 데이터를 잃지 않아야 한다.
+        // 새 테이블만 더하고 기존 테이블은 건드리지 않는다.
+        if (from < 2) {
+          final batch = db.batch();
+          _createDogTables(batch);
+          await batch.commit(noResult: true);
+        }
+      },
       onCreate: (db, v) async {
         final batch = db.batch();
 
@@ -97,8 +106,42 @@ class AppDb {
         ''');
         batch.execute('CREATE INDEX idx_course_cells ON course_cells(cell)');
 
+        _createDogTables(batch);
+
         await batch.commit(noResult: true);
       },
     );
+  }
+  /// 반려견 프로필과 산책-반려견 연결 테이블.
+  /// onCreate 와 onUpgrade 양쪽에서 써야 해서 따로 뺐다.
+  static void _createDogTables(Batch batch) {
+    batch.execute('''
+      CREATE TABLE dogs (
+        id             INTEGER PRIMARY KEY AUTOINCREMENT,
+        name           TEXT    NOT NULL,
+        breed          TEXT,
+        birth_ym       INTEGER,
+        weight_kg      REAL,
+        size           TEXT    NOT NULL DEFAULT 'small',
+        sociability    TEXT    NOT NULL DEFAULT 'neutral',
+        energy         TEXT    NOT NULL DEFAULT 'medium',
+        brachycephalic INTEGER NOT NULL DEFAULT 0,
+        is_active      INTEGER NOT NULL DEFAULT 1,
+        created_at     INTEGER NOT NULL
+      )
+    ''');
+
+    // 한 번의 산책에 여러 마리가 함께 나갈 수 있다.
+    // 다견 가정이 드물지 않아서 처음부터 다대다로 둔다.
+    batch.execute('''
+      CREATE TABLE walk_dogs (
+        walk_id INTEGER NOT NULL,
+        dog_id  INTEGER NOT NULL,
+        PRIMARY KEY (walk_id, dog_id),
+        FOREIGN KEY (walk_id) REFERENCES walks(id) ON DELETE CASCADE,
+        FOREIGN KEY (dog_id)  REFERENCES dogs(id)  ON DELETE CASCADE
+      )
+    ''');
+    batch.execute('CREATE INDEX idx_walk_dogs_dog ON walk_dogs(dog_id)');
   }
 }
