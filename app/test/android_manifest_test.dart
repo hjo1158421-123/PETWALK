@@ -16,6 +16,23 @@ void main() {
           File('android/app/src/main/AndroidManifest.xml').readAsStringSync();
     });
 
+    test('주석 안에 "--" 가 없다', () {
+      // 주석에 "--" 를 넣었다가 매니페스트 파싱이 깨져 빌드가 3분 만에
+      // 죽은 적이 있다. XML 주석에는 "--" 를 쓸 수 없다.
+      // 에러는 "Error parsing AndroidManifest.xml" 한 줄뿐이라 원인을 짚기
+      // 어렵다. 한국어 주석에 대시를 쓰고 싶을 때 다시 밟을 함정이다.
+      final comments = RegExp(r'<!--([\s\S]*?)-->').allMatches(manifest);
+      expect(comments, isNotEmpty, reason: '주석이 사라졌다면 이 검사도 의미가 없다');
+
+      for (final c in comments) {
+        expect(
+          c.group(1),
+          isNot(contains('--')),
+          reason: '이 주석이 빌드를 깨뜨린다: ${c.group(1)?.trim()}',
+        );
+      }
+    });
+
     test('INTERNET 권한이 main 에 있다', () {
       // Flutter 템플릿은 이 권한을 debug/profile 매니페스트에만 넣어 둔다.
       // 개발 중에는 멀쩡하다가 릴리스 APK 에서만 지도 타일(OSM)과

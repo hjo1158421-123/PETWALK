@@ -40,7 +40,7 @@
       어떤 값에 근거가 있고 없는지는
       [docs/권장산책량-근거.md](docs/권장산책량-근거.md) 에 정리돼 있다.
 
-`flutter analyze` 0건, `flutter test` 56개 통과 상태를 유지할 것.
+`flutter analyze` 0건, `flutter test` 60개 통과 상태를 유지할 것.
 
 ## 다음 작업: 추천 엔진
 
