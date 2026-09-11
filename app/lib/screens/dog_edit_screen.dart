@@ -408,12 +408,21 @@ class _GoalPreview extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: _stat(context, '거리', Fmt.distance(goal.dailyDistanceM)),
-                ),
-                Expanded(
                   child: _stat(context, '시간', '${goal.dailyMinutes}분'),
                 ),
+                Expanded(
+                  child: _stat(context, '나눠서',
+                      '${goal.sessionMinutes}분씩 ${goal.sessionsPerDay}번'),
+                ),
               ],
+            ),
+            const SizedBox(height: 8),
+            // 거리는 목표가 아니라 환산 참고치다. 목표로 오해하지 않도록
+            // 작게, "약"을 붙여 보여 준다.
+            Text(
+              '보통 걸음이면 약 ${Fmt.distance(goal.dailyDistanceM)} 정도예요',
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
             for (final c in goal.cautions) ...[
               const SizedBox(height: 12),
@@ -423,15 +432,29 @@ class _GoalPreview extends StatelessWidget {
                   const Icon(Icons.info_outline, size: 16),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text(c,
-                        style: theme.textTheme.bodySmall?.copyWith(height: 1.4)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(c.text,
+                            style: theme.textTheme.bodySmall
+                                ?.copyWith(height: 1.4)),
+                        const SizedBox(height: 2),
+                        Text(
+                          c.source,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            height: 1.3,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ],
             const SizedBox(height: 12),
             Text(
-              '일반적인 기준으로 계산한 값이에요. 관절이나 심장에 문제가 있다면 '
+              '건강한 아이를 전제한 일반 기준이에요. 관절이나 심장에 문제가 있다면 '
               '수의사와 상의한 기준을 따라 주세요.',
               style: theme.textTheme.bodySmall
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant),

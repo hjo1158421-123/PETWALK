@@ -152,9 +152,12 @@ class _DogCard extends StatelessWidget {
     final goal = WalkGoal.forDog(dog);
 
     // 최근 7일 실적을 하루 권장량 x 7 과 견준다.
-    final walked = weekly?.distanceM ?? 0;
-    final target = goal.dailyDistanceM * 7;
-    final progress = target <= 0 ? 0.0 : (walked / target).clamp(0.0, 1.0);
+    // 거리가 아니라 시간으로 견주는 이유는 WalkGoal 주석 참조 — 가이드라인이
+    // 시간으로 말하므로 목표도 시간이어야 한다.
+    final walkedSec = weekly?.totalSec ?? 0;
+    final targetSec = goal.dailyMinutes * 60 * 7;
+    final progress =
+        targetSec <= 0 ? 0.0 : (walkedSec / targetSec).clamp(0.0, 1.0);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
@@ -203,8 +206,8 @@ class _DogCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  '이번 주 ${Fmt.distance(walked)} / '
-                  '목표 ${Fmt.distance(target)}',
+                  '이번 주 ${Fmt.duration(walkedSec)} / '
+                  '목표 ${Fmt.duration(targetSec)}',
                   style: theme.textTheme.bodySmall,
                 ),
               ),

@@ -23,13 +23,24 @@
 | GPS 기록 + 노이즈 필터 | 완료, 테스트됨 |
 | 로컬 SQLite (v2) | 완료, 마이그레이션 테스트 있음 |
 | 코스 자동 묶기 | 완료 |
-| 반려견 프로필 + 권장 산책량 | 완료 |
+| 반려견 프로필 + 권장 산책량 | 완료 (근거 보강은 아래 TODO) |
 | Android APK 빌드 | 성공 확인 |
 | 웹(Chrome) 실행 | 동작 확인 |
 | **실기기 검증** | **안 됨 — 아래 참조** |
 | **산책로 추천** | **미착수 — 다음 작업** |
 
-`flutter analyze` 0건, `flutter test` 33개 통과 상태를 유지할 것.
+### TODO
+
+- [ ] **권장 산책량에 근거 없는 수치가 남아 있다 — 보강 필요.**
+      몸집별 기준 시간(45/60/75분), 활동량 배수(0.8/1.0/1.3), 단두종
+      감축(×0.7), 걸음 속도(55m/분)는 출처가 없다. 방향만 상식에 맞춰 둔
+      값이라 실제 가이드라인으로 교체해야 한다. 진짜 해법은 견종별 권장
+      시간을 `data/breed_catalog.dart` 에 채우는 것 — 문헌이 몸집이 아니라
+      견종 단위로 말하기 때문이다.
+      어떤 값에 근거가 있고 없는지는
+      [docs/권장산책량-근거.md](docs/권장산책량-근거.md) 에 정리돼 있다.
+
+`flutter analyze` 0건, `flutter test` 35개 통과 상태를 유지할 것.
 
 ## 다음 작업: 추천 엔진
 
@@ -56,6 +67,11 @@
   두기로 했다. 손대지 말 것.
 - **`lib/services/track_filter.dart` 의 임계값** — 실기기 로그로 보정해야
   하는 값이다. 근거 없이 바꾸면 과거 기록과 어긋난다.
+- **`lib/models/walk_goal.dart` 의 수치와 문구** — 살아 있는 동물의 건강에
+  관한 조언이다. 각 값 옆에 근거를 적어 두었고 근거 없는 값은 "근거 없음"
+  이라고 명시했다. **출처 없이 숫자를 바꾸거나 새 문구를 추가하지 말 것.**
+  특히 되돌리기 쉬운 두 가지: 노령견 총량을 깎지 않는다, 거리가 아니라
+  시간이 목표다. 이유는 [docs/권장산책량-근거.md](docs/권장산책량-근거.md).
 
 ## 개발 환경
 
@@ -82,8 +98,16 @@ cd /c/PETWALK/app && export PATH="/c/flutter/bin:$PATH" && flutter analyze
 ```
 
 ```bash
-cd /c/PETWALK/app && export PATH="/c/flutter/bin:$PATH" && flutter run -d chrome
+cd /c/PETWALK/app && export PATH="/c/flutter/bin:$PATH" && flutter run -d web-server --web-port=8080 --web-hostname=localhost
 ```
+
+띄운 뒤 평소 쓰는 Chrome 으로 `http://localhost:8080` 을 직접 연다.
+VS Code 는 F5 → `PETWALK (web-server :8080)`.
+
+**`-d chrome` 은 이 PC 에서 안 된다.** 회사 Chrome 정책이 확장을 강제
+설치하는데 Flutter 가 붙이는 `--disable-extensions` 와 충돌해서 브라우저가
+기동하지 않는다. 정책은 건드리지 말 것. 자세한 건
+[docs/개발환경-함정.md](docs/개발환경-함정.md).
 
 `flutter run` 이 떠 있으면 프로젝트 락 때문에 `flutter test` 가 멈춘다.
 테스트 전에 dev 서버를 내릴 것.
@@ -123,6 +147,8 @@ widgets/     route_map.dart  지도 SDK 교체 지점
 ## 더 읽을 것
 
 - [docs/추천-설계.md](docs/추천-설계.md) — 추천 엔진 설계. 다음 작업의 기반
+- [docs/권장산책량-근거.md](docs/권장산책량-근거.md) — 권장 산책량의 숫자와
+  문구가 어디서 왔는지. 근거 있는 값과 없는 값을 구분해 두었다
 - [docs/의사결정-기록.md](docs/의사결정-기록.md) — 왜 이렇게 만들었는지.
   되돌리기 전에 반드시 읽을 것
 - [docs/개발환경-함정.md](docs/개발환경-함정.md) — 이 환경에서 시간을

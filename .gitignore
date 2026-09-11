@@ -1,6 +1,7 @@
 app/.dart_tool/
 app/build/
 app/.flutter-plugins*
+app/.widget_preview/
 .idea/
 .vscode/
 *.log

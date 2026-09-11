@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../models/dog.dart';
 import '../models/walk_goal.dart';
-import '../utils/format.dart';
 
 /// 산책을 시작하기 전에 함께 나갈 아이를 고른다.
 ///
@@ -69,8 +68,8 @@ class _DogPickerSheetState extends State<DogPickerSheet> {
             if (chosen.isNotEmpty) ...[
               const Divider(),
               Text(
-                '오늘 권장 ${Fmt.distance(goal.dailyDistanceM)} · '
-                '${goal.dailyMinutes}분',
+                '오늘 권장 ${goal.dailyMinutes}분 · '
+                '${goal.sessionMinutes}분씩 ${goal.sessionsPerDay}번',
                 style: theme.textTheme.bodyMedium,
               ),
               if (chosen.length > 1)
@@ -87,7 +86,7 @@ class _DogPickerSheetState extends State<DogPickerSheet> {
                     const Icon(Icons.info_outline, size: 15),
                     const SizedBox(width: 6),
                     Expanded(
-                      child: Text(c, style: theme.textTheme.bodySmall),
+                      child: Text(c.text, style: theme.textTheme.bodySmall),
                     ),
                   ],
                 ),
