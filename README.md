@@ -14,13 +14,14 @@
 - 로컬 SQLite 저장 — 네트워크가 끊겨도 기록이 남는다
 - 산책 이력 목록 / 상세 통계
 - 같은 길을 걸으면 자동으로 코스로 묶기 (geohash 셀 + 포함 계수)
+- 반려견 프로필과 견종별 권장 산책량, 산책별 동반 반려견 기록
 
 ## 현재 상태
 
 Flutter 3.47.3 (Dart 3.13.3) 기준으로 아래까지 확인했다.
 
 - `flutter analyze` — 이슈 0건
-- `flutter test` — 16개 전부 통과 (기기 없이 실행)
+- `flutter test` — 33개 전부 통과 (기기 없이 실행)
 - `android/` `ios/` 네이티브 폴더 생성 및 위치 권한 설정 완료
 - `flutter build apk --release` — 성공 (50.0MB, dev.petwalk.petwalk, minSdk 24 / targetSdk 36)
 - Chrome 에서 실행 확인 — 지도, 기록 화면, 이력 화면(웹 sqlite) 정상 동작
@@ -44,6 +45,45 @@ VS Code 쪽이 가볍고 설정할 게 적다.)
 코드를 저장하면 핫 리로드로 화면에 즉시 반영된다.
 
 Flutter SDK 경로(`C:\flutter`)는 `.vscode/settings.json` 에 이미 적어 뒀다.
+
+## 반려견 프로필
+
+산책량을 계산하고, 나중에 산책로 추천의 개인화 입력이 되는 부분이다.
+프로필에서 받는 값이 그대로 추천 가중치로 이어지도록 설계했다.
+
+| 입력 | 지금 쓰는 곳 | 추천 단계에서 쓸 곳 |
+|---|---|---|
+| 견종 | 크기·활동량·단두종 자동 채움 | — |
+| 단두종 여부 | 권장량 축소, 더위 주의 | 여름 낮 시간대 하드 필터 |
+| 나이(생년월) | 자견·노령견 판정 | 경사도 가중치 |
+| 몸집 | 권장 거리 기준선 | 목표 코스 길이 |
+| 활동량 | 권장량 배율 | 코스 난이도 |
+| 사교성 | — | 혼잡도 가중치 |
+
+견종을 고르면 크기·활동량·단두종 여부가 자동으로 채워진다
+(`lib/data/breed_catalog.dart`, 국내에서 흔한 48종). 목록에 없으면 직접
+입력하고 값을 고르면 된다.
+
+한 번의 산책에 여러 마리가 함께 나갈 수 있다. 다견 가정이 드물지 않아서
+처음부터 다대다로 두었다. 여러 마리일 때 권장량은 **가장 체력이 약한
+아이에게 맞춘다.**
+
+프로필을 목록에서 빼도 지난 산책 기록은 남는다. 실제로 걸었던 사실까지
+사라지면 통계가 어긋나기 때문이다 (`is_active` 플래그로 처리).
+
+### 권장 산책량 계산
+
+몸집으로 기준선을 잡고 나이·활동량·단두종 여부로 조정한다
+(`lib/models/walk_goal.dart`).
+
+- 기준: 소형 1.5km/30분, 중형 3.5km/60분, 대형 5km/75분
+- 자견(12개월 미만): 월령 x 5분, 하루 두 번 — 성장판 보호
+- 노령견: 0.6배 (노령 기준은 몸집이 클수록 빨리 온다)
+- 활동량: 차분함 0.8배, 활발함 1.3배
+- 단두종: 0.6배
+
+어디까지나 일반적인 기준이다. 화면에도 수의사 상담을 권하는 문구를 같이
+띄운다.
 
 ## 테스트
 
@@ -159,20 +199,23 @@ GPS 기록은 에뮬레이터에서 제대로 검증되지 않는다. 위치가 
 `NSLocationAlwaysAndWhenInUseUsageDescription`,
 `UIBackgroundModes: location`.
 
+
 이걸 빼먹으면 화면이 꺼지는 순간 기록이 끊긴다.
 ## 구조
 
 ```
 app/lib/
-  models/          Walk, TrackPoint, Course
+  models/          Walk, TrackPoint, Course, Dog, WalkGoal
+  data/            견종 카탈로그 (크기·활동량·단두종)
   services/
     location_service.dart   GPS 스트림 + 권한 + 플랫폼별 백그라운드 설정
     track_filter.dart       GPS 노이즈 제거 (여기가 정확도의 핵심)
     walk_recorder.dart      기록 상태 기계. 화면은 여기만 본다
     walk_repository.dart    SQLite CRUD + 코스 매칭
     course_matcher.dart     같은 길인지 판정하는 규칙
-    db.dart, geo.dart       스키마, 거리/geohash 계산
-  screens/         산책 / 이력 / 산책 상세 / 코스 상세
+    dog_repository.dart     반려견 프로필 CRUD + 산책 연결
+    db.dart, geo.dart       스키마(v2), 거리/geohash 계산
+  screens/         산책 / 이력 / 상세 / 코스 / 우리 아이 / 프로필 편집
   widgets/         RouteMap (지도 SDK 교체 지점), StatTile
 ```
 

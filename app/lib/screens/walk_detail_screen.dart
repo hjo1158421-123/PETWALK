@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import '../models/course.dart';
 import '../models/track_point.dart';
 import '../models/walk.dart';
+import '../models/dog.dart';
+import '../services/dog_repository.dart';
 import '../services/walk_repository.dart';
 import '../utils/format.dart';
 import '../widgets/route_map.dart';
@@ -25,11 +27,13 @@ class WalkDetailScreen extends StatefulWidget {
 
 class _WalkDetailScreenState extends State<WalkDetailScreen> {
   final _repo = WalkRepository();
+  final _dogRepo = DogRepository();
 
   Walk? _walk;
   Course? _course;
   int _courseOrder = 0;
   List<List<TrackPoint>> _segments = const [];
+  List<Dog> _dogs = const [];
   bool _loading = true;
 
   /// 이 시간 이상 끊긴 구간은 선을 잇지 않는다.
@@ -46,6 +50,7 @@ class _WalkDetailScreenState extends State<WalkDetailScreen> {
   Future<void> _load() async {
     final walk = await _repo.findWalk(widget.walkId);
     final points = await _repo.pointsFor(widget.walkId);
+    final dogs = await _dogRepo.dogsForWalk(widget.walkId);
 
     Course? course;
     var order = 0;
@@ -62,6 +67,7 @@ class _WalkDetailScreenState extends State<WalkDetailScreen> {
       _walk = walk;
       _course = course;
       _courseOrder = order;
+      _dogs = dogs;
       _segments = _splitSegments(points);
       _loading = false;
     });
@@ -131,6 +137,7 @@ class _WalkDetailScreenState extends State<WalkDetailScreen> {
                       child: RouteMap(segments: _segments, fitToRoute: true),
                     ),
                     if (widget.justFinished) _finishedBanner(context),
+                    if (_dogs.isNotEmpty) _dogsCard(context),
                     if (_course != null) _courseCard(context, _course!),
                     _statsCard(context, walk),
                   ],
@@ -157,7 +164,19 @@ class _WalkDetailScreenState extends State<WalkDetailScreen> {
     );
   }
 
+  Widget _dogsCard(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: ListTile(
+        leading: const Icon(Icons.pets),
+        title: Text(_dogs.map((d) => d.name).join(', ')),
+        subtitle: Text('${_dogs.length}마리와 함께 걸었어요'),
+      ),
+    );
+  }
+
   Widget _courseCard(BuildContext context, Course course) {
+
     return Card(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: ListTile(

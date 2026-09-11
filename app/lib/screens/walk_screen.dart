@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/walk.dart';
+import '../services/dog_repository.dart';
 import '../services/location_service.dart';
 import '../services/walk_recorder.dart';
 import '../utils/format.dart';
 import '../widgets/route_map.dart';
 import '../widgets/stat_tile.dart';
+import 'dog_picker_sheet.dart';
 import 'walk_detail_screen.dart';
 
 class WalkScreen extends StatelessWidget {
@@ -189,7 +191,22 @@ class _ControlPanel extends StatelessWidget {
 
   Future<void> _start(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
-    final readiness = await recorder.start();
+
+    // 함께 나갈 아이를 고른다. 한 마리뿐이면 묻지 않는다 -- 매번 같은
+    // 선택을 시키는 건 방해일 뿐이다.
+    final dogs = await DogRepository().listDogs();
+    var dogIds = <int>[for (final d in dogs) d.id!];
+    if (dogs.length > 1 && context.mounted) {
+      final picked = await showModalBottomSheet<List<int>>(
+        context: context,
+        isScrollControlled: true,
+        builder: (_) => DogPickerSheet(dogs: dogs),
+      );
+      if (picked == null) return; // 취소
+      dogIds = picked;
+    }
+
+    final readiness = await recorder.start(dogIds: dogIds);
     if (readiness == LocationReadiness.ready) return;
 
     final (String message, bool openable) = switch (readiness) {

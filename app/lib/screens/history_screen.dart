@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../models/course.dart';
 import '../models/walk.dart';
+import '../models/dog.dart';
+import '../services/dog_repository.dart';
 import '../services/walk_repository.dart';
 import '../utils/format.dart';
 import 'course_detail_screen.dart';
@@ -18,9 +20,11 @@ class HistoryScreen extends StatefulWidget {
 
 class HistoryScreenState extends State<HistoryScreen> {
   final _repo = WalkRepository();
+  final _dogRepo = DogRepository();
 
   List<Walk> _walks = const [];
   List<Course> _courses = const [];
+  Map<int, List<Dog>> _walkDogs = const {};
   bool _loading = true;
 
   @override
@@ -32,10 +36,13 @@ class HistoryScreenState extends State<HistoryScreen> {
   Future<void> reload() async {
     final walks = await _repo.listWalks();
     final courses = await _repo.listCourses();
+    // 산책마다 따로 조회하면 N+1 이 된다. 한 번에 가져온다.
+    final dogs = await _dogRepo.dogsForWalks([for (final w in walks) w.id!]);
     if (!mounted) return;
     setState(() {
       _walks = walks;
       _courses = courses;
+      _walkDogs = dogs;
       _loading = false;
     });
   }
@@ -63,7 +70,11 @@ class HistoryScreenState extends State<HistoryScreen> {
                   Expanded(
                     child: TabBarView(
                       children: [
-                        _WalkList(walks: _walks, onChanged: reload),
+                        _WalkList(
+                          walks: _walks,
+                          walkDogs: _walkDogs,
+                          onChanged: reload,
+                        ),
                         _CourseList(courses: _courses, onChanged: reload),
                       ],
                     ),
@@ -117,9 +128,14 @@ class _Summary extends StatelessWidget {
 }
 
 class _WalkList extends StatelessWidget {
-  const _WalkList({required this.walks, required this.onChanged});
+  const _WalkList({
+    required this.walks,
+    required this.walkDogs,
+    required this.onChanged,
+  });
 
   final List<Walk> walks;
+  final Map<int, List<Dog>> walkDogs;
   final Future<void> Function() onChanged;
 
   @override
@@ -148,9 +164,12 @@ class _WalkList extends StatelessWidget {
               Fmt.distance(w.distanceM),
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
-            subtitle: Text(
-              '${Fmt.duration(w.totalSec)} · 페이스 ${Fmt.pace(w.avgSpeedMps)}',
-            ),
+            subtitle: Text([
+              Fmt.duration(w.totalSec),
+              '페이스 ${Fmt.pace(w.avgSpeedMps)}',
+              if (walkDogs[w.id]?.isNotEmpty ?? false)
+                walkDogs[w.id]!.map((d) => d.name).join(', '),
+            ].join(' · ')),
             trailing: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.end,
@@ -235,9 +254,11 @@ class _Empty extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
+    // 화면이 낮으면 넘치므로 스크롤 가능하게 둔다.
+    return SingleChildScrollView(
+      child: Container(
+        alignment: Alignment.center,
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
