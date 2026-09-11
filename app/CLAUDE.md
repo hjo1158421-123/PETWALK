@@ -63,6 +63,16 @@
   JDK로 실제 돌아간다. 바꾸면 그 프로젝트가 깨진다.
   Flutter 는 `flutter config --jdk-dir` 로 JDK 17 을 따로 알고 있어서
   JAVA_HOME 과 무관하게 빌드된다.
+  **이 설정이 풀리면 Gradle 이 JAVA_HOME(JDK 1.6)을 집어 든다.**
+  `UnsupportedClassVersionError ... version 52.0` 이 그 증상이다.
+  고치는 법은 시스템 JAVA_HOME 이 아니라 이 설정이다:
+
+  ```powershell
+  flutter config --jdk-dir='C:\jdk17'
+  ```
+
+  Git Bash 에서는 백슬래시가 먹혀 `C:jdk17` 로 잘못 저장되니
+  PowerShell 에서 작은따옴표로 줄 것. `flutter config --list` 로 확인한다.
 - **User PATH 정리** — 중복 8건과 깨진 항목(`C`)이 있지만 사용자가 그대로
   두기로 했다. 손대지 말 것.
 - **`lib/services/track_filter.dart` 의 임계값** — 실기기 로그로 보정해야
