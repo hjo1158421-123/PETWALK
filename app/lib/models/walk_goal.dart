@@ -1,3 +1,4 @@
+import '../data/breed_catalog.dart';
 import 'dog.dart';
 
 /// 권장량 하나하나의 근거.
@@ -32,6 +33,7 @@ class WalkGoal {
     required this.sessionMinutes,
     required this.sessionsPerDay,
     this.cautions = const [],
+    this.hasBreedEvidence = false,
   });
 
   /// 하루 총 산책 시간. 이게 진짜 목표다.
@@ -43,6 +45,13 @@ class WalkGoal {
   final int sessionsPerDay;
 
   final List<Caution> cautions;
+
+  /// 기준선(dailyMinutes 의 출발점)이 견종별 실측 자료에서 왔는지.
+  ///
+  /// true 면 `BreedCatalog` 에 있는 켄넬클럽 권장치를 그대로 썼다는
+  /// 뜻이고, false 면 몸집만 보고 추정한 값(근거 없음)이라는 뜻이다.
+  /// 화면에서 "이 숫자가 얼마나 믿을 만한가"를 다르게 보여 주는 데 쓴다.
+  final bool hasBreedEvidence;
 
   /// 보통 걸음 속도(m/분) 가정치.
   ///
@@ -60,17 +69,25 @@ class WalkGoal {
   factory WalkGoal.forDog(Dog dog) {
     final cautions = <Caution>[];
 
-    // 몸집이 기준선을 정한다.
-    //
-    // AKC 는 "하루 30분~2시간"이라는 범위만 제시하고, 켄넬클럽의 세분화된
-    // 기준은 몸집이 아니라 견종별이다. 그래서 범위 안에서 몸집에 따라
-    // 나눈 이 숫자들 자체는 **근거 없음**이다. 방향(클수록 길게)만 상식에
-    // 맞춰 두었고, 견종별 카탈로그가 충실해지면 그쪽으로 옮겨야 한다.
-    var minutes = switch (dog.size) {
-      DogSize.small => 45,
-      DogSize.medium => 60,
-      DogSize.large => 75,
-    };
+    // 견종이 카탈로그에 있고 켄넬클럽 권장치를 알고 있으면 그 값을
+    // 기준선으로 쓴다. 없으면 몸집만 보고 추정한다.
+    final breedMinutes = BreedCatalog.find(dog.breed)?.recommendedMinutes;
+    final hasBreedEvidence = breedMinutes != null;
+
+    var minutes = breedMinutes ??
+        // 몸집이 기준선을 정한다.
+        //
+        // AKC 는 "하루 30분~2시간"이라는 범위만 제시하고, 켄넬클럽의
+        // 세분화된 기준은 몸집이 아니라 견종별이다. 그래서 범위 안에서
+        // 몸집에 따라 나눈 이 숫자들 자체는 **근거 없음**이다. 방향
+        // (클수록 길게)만 상식에 맞춰 두었다. 견종을 알면 이 분기를 타지
+        // 않는다 — `BreedCatalog.recommendedMinutes` 가 채워진 견종 목록은
+        // docs/권장산책량-근거.md 참조.
+        switch (dog.size) {
+          DogSize.small => 45,
+          DogSize.medium => 60,
+          DogSize.large => 75,
+        };
     var sessions = 2;
 
     final months = dog.ageMonths;
@@ -87,7 +104,8 @@ class WalkGoal {
       // 논 강아지는 오히려 위험이 낮았다. 그래서 시간은 보수적으로만 잡고
       // 진짜 조언은 cautions 로 전달한다.
       //
-      // 월령 비례로 성견 기준선까지 올리는 이 보간은 **근거 없음**이다.
+      // 성견 기준선(견종 실측이든 몸집 추정이든)까지 월령 비례로 올리는
+      // 이 보간 자체는 **근거 없음**이다.
       minutes = (minutes * months / 12).round().clamp(15, minutes);
       sessions = 3;
 
@@ -132,22 +150,37 @@ class WalkGoal {
       }
 
       // 활동량 배수. **근거 없음.**
-      // 같은 몸집이어도 보더콜리와 불독이 같을 수 없다는 상식에 기댄 값이다.
-      final factor = switch (dog.energy) {
-        EnergyLevel.low => 0.8,
-        EnergyLevel.medium => 1.0,
-        EnergyLevel.high => 1.3,
-      };
-      minutes = (minutes * factor).round();
+      //
+      // 견종 기준선(hasBreedEvidence)을 썼을 때는 곱하지 않는다. 켄넬클럽
+      // 권장치는 이미 그 견종의 평균적인 활동 성향을 반영한 값이라, 여기에
+      // 근거 없는 배수를 또 곱하면 근거 있는 숫자를 근거 없는 숫자로 다시
+      // 덮어쓰는 꼴이 된다. 몸집만으로 추정했을 때만 활동량으로 보정한다.
+      if (!hasBreedEvidence) {
+        final factor = switch (dog.energy) {
+          EnergyLevel.low => 0.8,
+          EnergyLevel.medium => 1.0,
+          EnergyLevel.high => 1.3,
+        };
+        minutes = (minutes * factor).round();
+      }
     }
 
     if (dog.brachycephalic) {
       // 단두종은 기도가 짧아 헐떡임으로 체온을 내리기 어렵다.
       //
-      // 줄여야 한다는 **방향은 근거가 분명하지만, 0.7 이라는 배수 자체는
-      // 근거 없음**이다. 문헌은 위험비를 말할 뿐 "몇 분이 적당한가"를
-      // 말하지 않는다.
-      minutes = (minutes * 0.7).round();
+      // 문헌(Hall 2020)이 실제로 말하는 것은 "운동 중 열사병 위험이
+      // 높다"는 것이지 "운동량 자체를 줄여야 한다"가 아니다 — 오즈비는
+      // 강도·환경 대비 위험을 말할 뿐 적정 시간을 말하지 않는다. 그래서
+      // 견종 기준선(hasBreedEvidence)이 있으면 시간을 줄이지 않는다.
+      // 프렌치 불독·퍼그처럼 켄넬클럽 표에 이미 있는 단두종은 그 권장치
+      // 자체가 해당 견종의 정상 활동량이므로, 거기에 또 배수를 곱하면
+      // 근거 있는 값을 근거 없는 값으로 덮어쓰게 된다.
+      //
+      // 몸집만으로 추정했을 때는 예전처럼 ×0.7 을 쓴다. 줄여야 한다는
+      // **방향은 근거가 분명하지만, 0.7 이라는 배수 자체는 근거 없음**이다.
+      if (!hasBreedEvidence) {
+        minutes = (minutes * 0.7).round();
+      }
 
       cautions.add(const Caution(
         '코가 짧은 견종이라 숨이 쉽게 찹니다. 헥헥거리면 바로 쉬어 주세요. '
@@ -177,6 +210,7 @@ class WalkGoal {
       sessionMinutes: (minutes / sessions).round().clamp(5, minutes),
       sessionsPerDay: sessions,
       cautions: cautions,
+      hasBreedEvidence: hasBreedEvidence,
     );
   }
 
@@ -192,6 +226,9 @@ class WalkGoal {
       sessionMinutes: weakest.sessionMinutes,
       sessionsPerDay: weakest.sessionsPerDay,
       cautions: [for (final g in goals) ...g.cautions],
+      // 여러 마리 중 가장 약한 아이 기준을 썼으니, 신뢰도 표시도 그
+      // 아이의 것을 따라간다.
+      hasBreedEvidence: weakest.hasBreedEvidence,
     );
   }
 

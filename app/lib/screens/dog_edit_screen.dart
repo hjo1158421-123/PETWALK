@@ -404,7 +404,15 @@ class _GoalPreview extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('하루 권장 산책량', style: theme.textTheme.titleSmall),
+            Row(
+              children: [
+                Text('하루 권장 산책량', style: theme.textTheme.titleSmall),
+                if (goal.hasBreedEvidence) ...[
+                  const SizedBox(width: 8),
+                  const _EvidenceBadge(),
+                ],
+              ],
+            ),
             const SizedBox(height: 12),
             Row(
               children: [
@@ -455,8 +463,13 @@ class _GoalPreview extends StatelessWidget {
             ],
             const SizedBox(height: 12),
             Text(
-              '건강한 아이를 전제한 일반 기준이에요. 관절이나 심장에 문제가 있다면 '
-              '수의사와 상의한 기준을 따라 주세요.',
+              goal.hasBreedEvidence
+                  ? '이 견종에 대해 UK 켄넬클럽이 공식으로 권장하는 운동 시간이에요. '
+                      '건강한 아이를 전제하며, 관절이나 심장에 문제가 있다면 수의사와 '
+                      '상의한 기준을 따라 주세요.'
+                  : '이 견종의 실측 자료가 없어 몸집만 보고 추정한 일반 기준이에요. '
+                      '건강한 아이를 전제하며, 관절이나 심장에 문제가 있다면 수의사와 '
+                      '상의한 기준을 따라 주세요.',
               style: theme.textTheme.bodySmall
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
@@ -475,6 +488,43 @@ class _GoalPreview extends StatelessWidget {
         const SizedBox(height: 3),
         Text(label, style: tokens.caption),
       ],
+    );
+  }
+}
+
+/// "이 숫자는 견종 실측 자료에서 왔다"는 걸 한눈에 보여 주는 작은 배지.
+///
+/// `WalkGoal.hasBreedEvidence` 가 true 일 때만 나타난다. 몸집만 보고
+/// 추정한 값과 실측 자료를 눈으로 구분할 수 있어야, 사용자가 "이 숫자를
+/// 얼마나 믿어도 되는지" 판단할 수 있다.
+class _EvidenceBadge extends StatelessWidget {
+  const _EvidenceBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: scheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.verified,
+              size: 13, color: scheme.onSecondaryContainer),
+          const SizedBox(width: 3),
+          Text(
+            '켄넬클럽 실측 기준',
+            style: TextStyle(
+              fontSize: 11,
+              color: scheme.onSecondaryContainer,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
