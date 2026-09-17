@@ -1,0 +1,28 @@
+workflows:
+  ios-unsigned:
+    name: PETWALK iOS 무서명 빌드 (Sideloadly 로 설치)
+    # 이 PC 엔 Mac 이 없어서 Codemagic 의 무료 macOS 빌드를 빌려 쓴다.
+    # Apple Developer Program($99/년) 없이 확인하려는 목적이라 Xcode
+    # 코드사이닝을 아예 건너뛴다 — 서명은 실기기 쪽에서 Sideloadly 가
+    # 무료 Apple ID 로 직접 한다(7일마다 재서명 필요, 감수하기로 함).
+    max_build_duration: 30
+    instance_type: mac_mini_m2
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Flutter 패키지 설치
+        script: flutter pub get
+      - name: iOS 빌드 (무서명)
+        script: flutter build ios --release --no-codesign
+      - name: 무서명 IPA 로 패키징
+        # Xcode 서명이 없으니 archive/export 과정 없이 Runner.app 을
+        # 그대로 Payload/ 안에 넣고 압축만 하면 Sideloadly 가 읽을 수
+        # 있는 .ipa 형태가 된다.
+        script: |
+          mkdir -p Payload
+          cp -r build/ios/iphoneos/Runner.app Payload/
+          zip -r petwalk-unsigned.ipa Payload
+    artifacts:
+      - petwalk-unsigned.ipa
