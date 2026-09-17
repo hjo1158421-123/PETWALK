@@ -41,8 +41,14 @@ class Walk {
 
   /// 전체 시간 중 멈춰 있던 비율.
   /// 강아지가 냄새를 맡느라 자주 멈춘 산책일수록 높다 — 만족도 신호로 쓸 값.
-  double get sniffRatio =>
-      totalSec > 0 ? (totalSec - movingSec) / totalSec : 0;
+  ///
+  /// 0~1 로 clamp 한다. `movingSec` 과 `totalSec` 은 서로 다른 시계에서
+  /// 나온 값이라(전자는 GPS 타임스탬프, 후자는 벽시계) 반올림이 겹치면
+  /// `movingSec` 이 `totalSec` 을 아주 살짝 넘어설 수 있다. 그대로 두면
+  /// 음수 비율이 나온다.
+  double get sniffRatio => totalSec > 0
+      ? ((totalSec - movingSec) / totalSec).clamp(0.0, 1.0)
+      : 0;
 
   Set<String> get cells =>
       (geohashSig == null || geohashSig!.isEmpty)

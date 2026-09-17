@@ -26,7 +26,7 @@
 | 반려견 프로필 + 권장 산책량 | 완료 (근거 보강은 아래 TODO) |
 | Android APK 빌드 | 성공 확인 |
 | 웹(Chrome) 실행 | 동작 확인 |
-| **실기기 검증** | **안 됨 — 아래 참조** |
+| 실기기 GPS 기록 | Android 태블릿에서 확인됨 (release APK) |
 | **산책로 추천** | **미착수 — 다음 작업** |
 
 ### TODO
@@ -40,30 +40,7 @@
       어떤 값에 근거가 있고 없는지는
       [docs/권장산책량-근거.md](docs/권장산책량-근거.md) 에 정리돼 있다.
 
-- [ ] **"멈춰서 냄새 맡은 비율"이 음수로 나온다 (실제 관측: -97%).**
-      원인까지 짚어 뒀으니 여기서부터 시작할 것.
-
-      **두 시계의 출처가 다르다.**
-      - `_elapsedSec` — `Timer.periodic` 으로 1초씩 **센다**
-      - `_movingMs` — GPS 픽스의 타임스탬프 차이로 **쌓는다**
-
-      화면이 꺼지거나 브라우저 탭이 백그라운드로 가면 타이머는 throttle 되어
-      멈추는데 GPS 는 계속 온다. 그래서 `movingSec > totalSec` 이 되고,
-      `Walk.sniffRatio = (totalSec - movingSec) / totalSec` 가 음수가 된다.
-      관측값 전체 01:37(97초) vs 움직인 03:11(191초) — 거의 2배다.
-
-      **이 앱은 화면을 끄고 걷는 걸 전제로 만들었다.** 백그라운드 위치와
-      wake lock 까지 넣어 뒀다. 즉 실기기 정상 사용에서 늘 생기는 문제지,
-      가짜 GPS 때문이 아니다.
-
-      고칠 방향: 경과 시간을 **세지 말고 계산할 것.**
-      `DateTime.now() - _startedAt - (일시정지 누적)`.
-      타이머는 화면 갱신에만 쓴다. 일시정지 누적 시간을 따로 들고 있어야
-      하므로 `pause`/`resume`/`stop` 을 같이 손봐야 한다.
-      `sniffRatio` 에 clamp 도 걸 것 — 시계 오차로 다시 음수가 될 수 있다.
-      (`lib/services/walk_recorder.dart`, `lib/models/walk.dart`)
-
-`flutter analyze` 0건, `flutter test` 60개 통과 상태를 유지할 것.
+`flutter analyze` 0건, `flutter test` 65개 통과 상태를 유지할 것.
 
 ## 다음 작업: 추천 엔진
 

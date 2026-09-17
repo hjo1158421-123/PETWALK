@@ -18,11 +18,16 @@ class WalkRecorder extends ChangeNotifier {
   WalkRecorder({
     LocationService? location,
     WalkRepository? repository,
+    // 테스트에서 일시정지 누적 시간을 실제로 몇 초씩 기다리지 않고
+    // 검증하기 위한 시계 주입 지점. 기본은 실제 시계.
+    DateTime Function()? now,
   })  : _location = location ?? LocationService(),
-        _repo = repository ?? WalkRepository();
+        _repo = repository ?? WalkRepository(),
+        _now = now ?? DateTime.now;
 
   LocationService _location;
   final WalkRepository _repo;
+  final DateTime Function() _now;
 
   LocationService get location => _location;
 
@@ -57,6 +62,12 @@ class WalkRecorder extends ChangeNotifier {
   int? _walkId;
   DateTime? _startedAt;
 
+  /// 지금 일시정지 중이면 그 시작 시각. 아니면 null.
+  DateTime? _pausedAt;
+
+  /// 지금까지 일시정지해 있던 시간의 합. 경과 시간에서 빼야 한다.
+  Duration _pausedTotal = Duration.zero;
+
   GpsFilter _filter = GpsFilter();
   StreamSubscription<Position>? _sub;
   Timer? _ticker;
@@ -72,14 +83,30 @@ class WalkRecorder extends ChangeNotifier {
   double _distanceM = 0;
   double _elevGainM = 0;
   int _movingMs = 0;
-  int _elapsedSec = 0;
   DateTime? _lastFixTs;
   double _currentSpeedMps = 0;
   double? _lastAccuracy;
 
   double get distanceM => _distanceM;
   double get elevGainM => _elevGainM;
-  int get elapsedSec => _elapsedSec;
+
+  /// 시작~지금(또는 종료 시점) 사이 경과 시간, 일시정지 구간은 뺀다.
+  ///
+  /// **1초 타이머로 세지 않는다.** 예전엔 `Timer.periodic` 으로 셌는데,
+  /// 화면이 꺼지거나 탭이 백그라운드로 가면 타이머가 throttle 되어 멈추는
+  /// 반면 GPS 는 계속 들어와 `movingSec` 이 이 값을 앞질러 버렸다. 그 결과
+  /// `Walk.sniffRatio`(전체 시간 중 멈춘 비율)가 음수로 나오는 버그가 났다.
+  /// 벽시계 차이로 계산하면 타이머가 어떻게 되든 항상 맞는 값이 나온다.
+  /// 타이머는 이제 화면을 매초 다시 그리는 용도로만 남아 있다.
+  int get elapsedSec {
+    if (_startedAt == null) return 0;
+    final until = _pausedAt ?? _now();
+    final elapsed = until.difference(_startedAt!) - _pausedTotal;
+    // 시계가 뒤로 튀거나(NTP 보정 등) 반올림 오차로 아주 살짝 음수가 될
+    // 수 있다. 화면에 마이너스 시간을 보여줄 이유가 없다.
+    return elapsed.isNegative ? 0 : elapsed.inSeconds;
+  }
+
   int get movingSec => _movingMs ~/ 1000;
   double get currentSpeedMps => _currentSpeedMps;
   double? get lastAccuracy => _lastAccuracy;
@@ -119,7 +146,7 @@ class WalkRecorder extends ChangeNotifier {
 
     _reset();
     _dogIds = List.unmodifiable(dogIds);
-    _startedAt = DateTime.now();
+    _startedAt = _now();
     _walkId = await _repo.createWalk(_startedAt!);
     _segments.add([]);
 
@@ -147,12 +174,17 @@ class WalkRecorder extends ChangeNotifier {
 
     _lastFixTs = null;
     _currentSpeedMps = 0;
+    _pausedAt = _now();
     _state = RecorderState.paused;
     notifyListeners();
   }
 
   void resume() {
     if (_state != RecorderState.paused) return;
+    // 일시정지해 있던 시간을 누적해 두고 다시 흐르게 한다.
+    // pause() 는 항상 _pausedAt 을 채워 두므로 여기선 null 이 아니다.
+    _pausedTotal += _now().difference(_pausedAt!);
+    _pausedAt = null;
     _segments.add([]);
     _subscribe();
     _startTicker();
@@ -185,14 +217,14 @@ class WalkRecorder extends ChangeNotifier {
       return null;
     }
 
-    final endedAt = DateTime.now();
+    final endedAt = _now();
     var walk = Walk(
       id: walkId,
       startedAt: _startedAt!,
       endedAt: endedAt,
       distanceM: _distanceM,
       movingSec: movingSec,
-      totalSec: _elapsedSec,
+      totalSec: elapsedSec,
       elevGainM: _elevGainM,
       geohashSig: (_cells.toList()..sort()).join(','),
     );
@@ -238,10 +270,12 @@ class WalkRecorder extends ChangeNotifier {
     );
   }
 
+  /// 화면의 시간 표시를 매초 다시 그리게 하는 용도일 뿐이다.
+  /// `elapsedSec` 은 이 타이머가 아니라 벽시계 차이로 계산되므로,
+  /// 이 타이머가 throttle 되거나 멈춰도 값 자체는 어긋나지 않는다.
   void _startTicker() {
     _ticker?.cancel();
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      _elapsedSec++;
       notifyListeners();
     });
   }
@@ -302,6 +336,8 @@ class WalkRecorder extends ChangeNotifier {
     _walkId = null;
     _dogIds = const [];
     _startedAt = null;
+    _pausedAt = null;
+    _pausedTotal = Duration.zero;
     _filter = GpsFilter();
     _segments.clear();
     _pending.clear();
@@ -309,7 +345,6 @@ class WalkRecorder extends ChangeNotifier {
     _distanceM = 0;
     _elevGainM = 0;
     _movingMs = 0;
-    _elapsedSec = 0;
     _lastFixTs = null;
     _currentSpeedMps = 0;
     _lastAccuracy = null;

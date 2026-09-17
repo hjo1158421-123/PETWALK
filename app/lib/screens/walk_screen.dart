@@ -366,8 +366,12 @@ class _ControlPanel extends StatelessWidget {
             if (recorder.isActive) ...[
               const SizedBox(height: 8),
               Text(
+                // elapsedSec(벽시계)과 movingSec(GPS 타임스탬프)은 출처가
+                // 다른 시계라 아주 드물게 movingSec 이 살짝 앞설 수 있다.
+                // 그대로 빼면 음수가 Fmt.duration 의 나머지 연산을 타고
+                // "59:55" 같은 엉뚱한 값으로 나온다.
                 '멈춰 있던 시간 '
-                '${Fmt.duration(recorder.elapsedSec - recorder.movingSec)}',
+                '${Fmt.duration((recorder.elapsedSec - recorder.movingSec).clamp(0, 1 << 31))}',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
