@@ -31,4 +31,8 @@ workflows:
           cp -r build/ios/iphoneos/Runner.app Payload/
           zip -r petwalk-unsigned.ipa Payload
     artifacts:
+      # working_directory 기준인지 레포 루트 기준인지 문서상 불분명해서
+      # (실제로 레포 루트 기준으로 썼다가 0건 매칭됐다) 두 경로를 다 넣어
+      # 어느 쪽이든 잡히게 한다. 안 맞는 패턴은 그냥 무시되니 손해가 없다.
+      - petwalk-unsigned.ipa
       - app/petwalk-unsigned.ipa
