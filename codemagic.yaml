@@ -5,6 +5,12 @@ workflows:
     # Apple Developer Program($99/년) 없이 확인하려는 목적이라 Xcode
     # 코드사이닝을 아예 건너뛴다 — 서명은 실기기 쪽에서 Sideloadly 가
     # 무료 Apple ID 로 직접 한다(7일마다 재서명 필요, 감수하기로 함).
+    #
+    # 실제 Flutter 프로젝트는 레포 루트가 아니라 app/ 서브폴더에 있다
+    # (레포 루트엔 이 파일과 .gitignore 뿐). codemagic.yaml 자체는 반드시
+    # 레포 루트에 있어야 Codemagic 이 인식하므로, working_directory 로
+    # 서브폴더를 가리킨다.
+    working_directory: app
     max_build_duration: 30
     instance_type: mac_mini_m2
     environment:
@@ -25,4 +31,4 @@ workflows:
           cp -r build/ios/iphoneos/Runner.app Payload/
           zip -r petwalk-unsigned.ipa Payload
     artifacts:
-      - petwalk-unsigned.ipa
+      - app/petwalk-unsigned.ipa
