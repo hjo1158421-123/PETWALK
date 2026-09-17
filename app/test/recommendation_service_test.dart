@@ -179,5 +179,61 @@ void main() {
           await service.recommendNear(start: _at(), targetDistanceM: 400);
       expect(course, isNull);
     });
+
+    test('회귀 방지: 골목이 큰길 중간에서 갈라져도 코스를 찾는다', () async {
+      // 실기기에서 실제로 겪은 버그를 그대로 재현한다. 주도로(main, 단일
+      // way, 0~400m)와 그 150m 지점(세그먼트 "중간")에서 갈라지는 막다른
+      // 골목(spur, 50m)을 만들고, 시작점을 골목 끝으로 잡는다.
+      //
+      // 교차점 분할이 없던 버전에서는 주도로가 100m 단위로만 끊겨서
+      // 골목의 시작점(150m)이 그 어떤 주도로 세그먼트의 끝점과도 안
+      // 맞았다 — 시작점(골목 끝)에서 갈 수 있는 곳이 골목 자체 2개
+      // 노드뿐이라 추천이 항상 실패했다.
+      final mainStart = _at();
+      final mainEnd = _at(northM: 400);
+      final spurJoint = _at(northM: 150); // 주도로 세그먼트 중간
+      final spurEnd = _at(northM: 150, eastM: 50);
+
+      final overpassClient = MockClient((request) async => http.Response(
+            jsonEncode({
+              'elements': [
+                {
+                  'type': 'way',
+                  'id': 1,
+                  // 실제 OSM 이라면 교차로가 있는 지점은 way 의 노드
+                  // 목록에 실제로 존재한다 — 시작·끝 2점만으로 단순화하면
+                  // 중간 교차점 좌표 자체가 geometry 에 없어 애초에 탐지될
+                  // 수 없다. 그래서 spurJoint 를 중간 노드로 명시한다.
+                  'geometry': [
+                    _geo(mainStart),
+                    _geo(spurJoint),
+                    _geo(mainEnd)
+                  ],
+                  'tags': {'highway': 'residential'},
+                },
+                {
+                  'type': 'way',
+                  'id': 2,
+                  'geometry': [_geo(spurJoint), _geo(spurEnd)],
+                  'tags': {'highway': 'footway'},
+                },
+              ],
+            }),
+            200,
+          ));
+
+      final service = RecommendationService(
+        overpass: OverpassService(client: overpassClient),
+        elevation: ElevationService(client: overpassClient),
+      );
+
+      final course = await service.recommendNear(
+        start: spurEnd,
+        targetDistanceM: 300,
+      );
+
+      expect(course, isNotNull,
+          reason: '골목 끝에서 출발해도 주도로와 이어져 코스가 나와야 한다');
+    });
   });
 }

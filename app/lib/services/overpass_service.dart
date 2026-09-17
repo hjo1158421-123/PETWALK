@@ -112,12 +112,33 @@ String buildOverpassQuery({
 
 /// Overpass JSON 응답을 세그먼트 목록으로 바꾼다.
 ///
+/// **두 단계로 나눠 처리한다.** 처음엔 모든 way 를 개별적으로 100m 씩
+/// 잘랐는데, 그러면 실제로 이어진 도로망이 그래프에서 조각조각 끊겨
+/// 버렸다 — 실기기에서 노드 수천 개짜리 그래프인데 시작점에서 갈 수
+/// 있는 곳이 단 2곳뿐인 현상으로 발견했다.
+///
+/// 원인은 이렇다. 도로 A 가 0~300m, 도로 B 가 A 의 150m 지점에서
+/// 갈라져 나간다고 하자. A 는 100m 단위로만 끊기니 마디가 100m·200m
+/// 지점에 생기고, B 의 시작점(150m 지점)은 그 어떤 A 세그먼트의
+/// 끝점과도 좌표가 안 맞는다. 실제로는 이어진 길인데 그래프에서는
+/// 완전히 분리된 것처럼 보인다.
+///
+/// 그래서 먼저(1차 패스) 모든 도로 way 의 좌표를 모아 "두 개 이상의
+/// way 가 공유하는 좌표"를 교차점으로 찾아 두고, 세그먼트를 자를 때
+/// (2차 패스) 100m 마다는 물론 **교차점을 만날 때도** 끊는다. 이러면
+/// 교차점 좌표가 양쪽 세그먼트에 정확히 같은 키로 나타나 그래프가
+/// 실제 도로망처럼 이어진다.
+///
 /// 네트워크와 분리된 순수 함수다 — fixture JSON 하나로 파싱·분할·그늘
 /// 매칭 로직 전부를 네트워크 없이 검증할 수 있다.
 List<RouteSegment> parseOverpassResponse(Map<String, dynamic> json) {
   final elements = (json['elements'] as List?) ?? const [];
 
-  final roadSegments = <RouteSegment>[];
+  // 1차 패스: 도로 way 를 전부 모으고, 좌표별로 몇 개의 way 가
+  // 지나가는지 센다.
+  final wayPoints = <String, List<LatLng>>{};
+  final wayTags = <String, Map>{};
+  final pointToWays = <String, Set<String>>{};
   final greeneryPoints = <LatLng>[];
 
   for (final el in elements) {
@@ -138,14 +159,13 @@ List<RouteSegment> parseOverpassResponse(Map<String, dynamic> json) {
     if (highway != null) {
       if (!_walkableHighways.contains(highway)) continue;
       final wayId = 'w${el['id']}';
-      roadSegments.addAll(_splitIntoSegments(
-        wayId: wayId,
-        points: points,
-        highway: highway,
-        surface: tags['surface'] as String?,
-        osmName: tags['name'] as String?,
-        sidewalk: tags['sidewalk'] as String?,
-      ));
+      wayPoints[wayId] = points;
+      wayTags[wayId] = tags;
+      for (final p in points) {
+        pointToWays
+            .putIfAbsent(coordKey(p.latitude, p.longitude), () => {})
+            .add(wayId);
+      }
     } else if (tags['leisure'] == 'park' ||
         tags['landuse'] == 'forest' ||
         tags['natural'] == 'wood' ||
@@ -153,6 +173,26 @@ List<RouteSegment> parseOverpassResponse(Map<String, dynamic> json) {
       // 녹지는 세그먼트로 쪼갤 필요 없이, 그늘 근접 판정용 좌표로만 쓴다.
       greeneryPoints.addAll(points);
     }
+  }
+
+  final intersections = {
+    for (final entry in pointToWays.entries)
+      if (entry.value.length >= 2) entry.key,
+  };
+
+  // 2차 패스: 교차점 + 100m 규칙으로 세그먼트를 만든다.
+  final roadSegments = <RouteSegment>[];
+  for (final wayId in wayPoints.keys) {
+    final tags = wayTags[wayId]!;
+    roadSegments.addAll(_splitIntoSegments(
+      wayId: wayId,
+      points: wayPoints[wayId]!,
+      highway: tags['highway'] as String,
+      surface: tags['surface'] as String?,
+      osmName: tags['name'] as String?,
+      sidewalk: tags['sidewalk'] as String?,
+      intersections: intersections,
+    ));
   }
 
   if (greeneryPoints.isEmpty) return roadSegments;
@@ -163,10 +203,12 @@ List<RouteSegment> parseOverpassResponse(Map<String, dynamic> json) {
   ];
 }
 
-/// way 하나를 [kSegmentTargetLengthM] 안팎 길이의 세그먼트로 자른다.
+/// way 하나를 세그먼트로 자른다. 100m 를 채우거나 [intersections] 에 있는
+/// 좌표(다른 도로와 만나는 지점)에 닿으면 끊는다.
 ///
-/// 마지막 조각이 10m 보다 짧으면 버린다 — 점수화 대상으로 삼기엔 너무
-/// 짧아서 노이즈만 늘린다.
+/// 마지막 조각이 10m 보다 짧으면 버린다 — 단, 교차점에서 끊긴 조각은
+/// 아무리 짧아도 유지한다. 짧다고 버리면 바로 그 지점에서 그래프
+/// 연결이 다시 끊어진다.
 List<RouteSegment> _splitIntoSegments({
   required String wayId,
   required List<LatLng> points,
@@ -174,11 +216,24 @@ List<RouteSegment> _splitIntoSegments({
   String? surface,
   String? osmName,
   String? sidewalk,
+  required Set<String> intersections,
 }) {
   final segments = <RouteSegment>[];
   var current = <LatLng>[points.first];
   var accumulated = 0.0;
   var index = 0;
+
+  void flush() {
+    if (current.length < 2) return;
+    segments.add(RouteSegment(
+      id: '$wayId#${index++}',
+      points: List.of(current),
+      highway: highway,
+      surface: surface,
+      osmName: osmName,
+      sidewalk: sidewalk,
+    ));
+  }
 
   for (var i = 1; i < points.length; i++) {
     final d = haversineM(
@@ -190,30 +245,23 @@ List<RouteSegment> _splitIntoSegments({
     current.add(points[i]);
     accumulated += d;
 
-    if (accumulated >= kSegmentTargetLengthM) {
-      segments.add(RouteSegment(
-        id: '$wayId#${index++}',
-        points: List.of(current),
-        highway: highway,
-        surface: surface,
-        osmName: osmName,
-        sidewalk: sidewalk,
-      ));
+    // way 의 맨 끝점은 어차피 루프 뒤에서 처리하니, 중간 지점에서만
+    // 교차점 여부를 본다.
+    final isLast = i == points.length - 1;
+    final atIntersection = !isLast &&
+        intersections.contains(coordKey(points[i].latitude, points[i].longitude));
+
+    if (accumulated >= kSegmentTargetLengthM || atIntersection) {
+      flush();
       current = [points[i]];
       accumulated = 0;
     }
   }
 
-  if (current.length >= 2 && accumulated >= 10) {
-    segments.add(RouteSegment(
-      id: '$wayId#${index++}',
-      points: current,
-      highway: highway,
-      surface: surface,
-      osmName: osmName,
-      sidewalk: sidewalk,
-    ));
-  }
+  // way 끝에서 남은 자투리. 100m 도 못 채우고 교차점도 아니라서 루프
+  // 안에서 못 끊긴 진짜 마지막 조각이다 — 이것만 10m 미만이면 버린다.
+  // (교차점에서 끊긴 조각은 이미 위에서 flush 돼 여기 안 걸린다.)
+  if (accumulated >= 10) flush();
 
   return segments;
 }

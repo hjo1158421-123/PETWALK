@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:petwalk/services/geo.dart';
 import 'package:petwalk/services/overpass_service.dart';
 
 /// 서울시청 근처 좌표. 위경도 1도가 약 111km 라는 사실만 알면 되는
@@ -235,6 +236,121 @@ void main() {
         ],
       });
       expect(segments.single.isCarOrCycleOnly, isFalse);
+    });
+  });
+
+  group('parseOverpassResponse — 교차점 (회귀 방지)', () {
+    // 실기기에서 실제로 겪은 버그: 도로 A(0~300m)를 100m 단위로만 자르면
+    // 마디가 100m·200m 지점에만 생긴다. 도로 B 가 A 의 150m 지점(세그먼트
+    // "중간")에서 갈라져 나가면, B 의 시작점은 A 의 어떤 세그먼트 끝점과도
+    // 좌표가 안 맞아 그래프에서 완전히 분리된다 — 노드 수천 개짜리
+    // 그래프인데 시작점에서 갈 수 있는 곳이 2곳뿐인 현상으로 나타났다.
+    // 지금은 교차점에서도 강제로 끊어서 이 문제를 막는다.
+
+    test('다른 way 와 만나는 지점에서도 세그먼트가 끊긴다', () {
+      // A: 0m ~ 300m 직선(교차점을 포함하지 않는 50m 간격 점들).
+      final aPoints = [
+        for (var i = 0; i <= 6; i++) {'lat': _lat(i * 50.0), 'lon': _baseLng}
+      ];
+      // B: A 의 150m 지점(=A 의 세그먼트 "중간")에서 동쪽으로 갈라진다.
+      final crossingLat = _lat(150);
+      final bPoints = [
+        {'lat': crossingLat, 'lon': _baseLng},
+        {'lat': crossingLat, 'lon': _baseLng + 0.001},
+      ];
+
+      final segments = parseOverpassResponse({
+        'elements': [
+          {
+            'type': 'way',
+            'id': 100,
+            'geometry': aPoints,
+            'tags': {'highway': 'residential'},
+          },
+          {
+            'type': 'way',
+            'id': 200,
+            'geometry': bPoints,
+            'tags': {'highway': 'footway'},
+          },
+        ],
+      });
+
+      final crossingKey = coordKey(crossingLat, _baseLng);
+      final aEndpointKeys = {
+        for (final s in segments)
+          if (s.id.startsWith('w100#')) ...[
+            coordKey(s.start.latitude, s.start.longitude),
+            coordKey(s.end.latitude, s.end.longitude),
+          ],
+      };
+
+      expect(aEndpointKeys, contains(crossingKey),
+          reason: 'A 가 150m 지점(B 와의 교차점)에서 끊기지 않으면 '
+              'B 와 그래프로 이어지지 않는다');
+    });
+
+    test('교차점이 없으면 100m 단위로만 자른다(기존 동작 유지)', () {
+      final points = [
+        for (var i = 0; i <= 9; i++) {'lat': _lat(i * 30.0), 'lon': _baseLng}
+      ];
+      final segments = parseOverpassResponse({
+        'elements': [
+          {
+            'type': 'way',
+            'id': 300,
+            'geometry': points,
+            'tags': {'highway': 'footway'},
+          },
+        ],
+      });
+
+      // 이전과 동일하게 120/120/30(마지막) = 3개여야 한다.
+      expect(segments, hasLength(3));
+    });
+
+    test('교차점끼리 가까우면 그 사이 짧은 조각도 버려지지 않는다', () {
+      // A 는 0~200m. 100m 지점에서 B 와, 105m 지점에서 C 와 만난다.
+      // 100~105m 사이의 5m 짜리 조각은 순전히 두 교차점 때문에 강제로
+      // 끊긴 것이라, "10m 미만이면 버린다"는 규칙에 걸리면 안 된다 —
+      // 걸리면 B·C 양쪽과의 그래프 연결이 그 자리에서 끊어진다.
+      final aPoints = [
+        {'lat': _lat(0), 'lon': _baseLng},
+        {'lat': _lat(100), 'lon': _baseLng},
+        {'lat': _lat(105), 'lon': _baseLng},
+        {'lat': _lat(200), 'lon': _baseLng},
+      ];
+      final b = [
+        {'lat': _lat(100), 'lon': _baseLng},
+        {'lat': _lat(100), 'lon': _baseLng + 0.001},
+      ];
+      final c = [
+        {'lat': _lat(105), 'lon': _baseLng},
+        {'lat': _lat(105), 'lon': _baseLng + 0.001},
+      ];
+
+      final segments = parseOverpassResponse({
+        'elements': [
+          {
+            'type': 'way',
+            'id': 400,
+            'geometry': aPoints,
+            'tags': {'highway': 'footway'},
+          },
+          {'type': 'way', 'id': 500, 'geometry': b, 'tags': {'highway': 'footway'}},
+          {'type': 'way', 'id': 600, 'geometry': c, 'tags': {'highway': 'footway'}},
+        ],
+      });
+
+      final aSegments =
+          segments.where((s) => s.id.startsWith('w400#')).toList();
+      // [0-100] · [100-105](5m, 교차점 사이) · [105-200] = 3개.
+      // 짧다고 가운데 조각이 버려지면 2개가 된다.
+      expect(aSegments, hasLength(3));
+      expect(
+        aSegments.map((s) => s.lengthM).reduce((a, b) => a + b),
+        closeTo(200, 1),
+      );
     });
   });
 }
