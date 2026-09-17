@@ -16,6 +16,15 @@ double haversineM(double lat1, double lng1, double lat2, double lng2) {
 
 double _rad(double deg) => deg * math.pi / 180.0;
 
+/// 좌표를 소수 [precision] 자리로 반올림해 문자열 키로 만든다.
+/// 기본 5자리는 약 1.1m 격자다.
+///
+/// 미세하게 다른 좌표(부동소수점 오차, GPS/OSM 소스 차이)를 "같은 지점"
+/// 으로 묶어야 하는 자리마다 쓴다 — 고도 조회 캐시 키(`ElevationService`),
+/// 추천 엔진 그래프의 교차점 판별(`RouteRecommender`) 둘 다 여기서 쓴다.
+String coordKey(double lat, double lng, {int precision = 5}) =>
+    '${lat.toStringAsFixed(precision)},${lng.toStringAsFixed(precision)}';
+
 const String _base32 = '0123456789bcdefghjkmnpqrstuvwxyz';
 
 /// geohash 인코딩.

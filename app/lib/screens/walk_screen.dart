@@ -13,6 +13,7 @@ import '../utils/format.dart';
 import '../widgets/route_map.dart';
 import '../widgets/stat_tile.dart';
 import 'dog_picker_sheet.dart';
+import 'recommendation_screen.dart';
 import 'walk_detail_screen.dart';
 
 class WalkScreen extends StatelessWidget {
@@ -39,6 +40,12 @@ class WalkScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const _ThemeSwitchButton(),
+                // 기록 중엔 의미가 없다 — 지금 걷고 있는 사람에게 "어디로
+                // 갈지" 추천을 들이미는 건 방해다.
+                if (!recorder.isActive) ...[
+                  const SizedBox(height: 10),
+                  const _RecommendationButton(),
+                ],
                 // 릴리스 빌드에는 들어가지 않는다. 가짜 좌표로 만든 기록이
                 // 실제 사용자 이력에 섞이면 안 된다.
                 if (kDebugMode) ...[
@@ -115,6 +122,61 @@ class _ThemeSwitchButton extends StatelessWidget {
                 ),
               ),
               Icon(Icons.swap_horiz, size: 20, color: tokens.muted),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 코스 추천 화면으로 들어가는 진입점.
+class _RecommendationButton extends StatelessWidget {
+  const _RecommendationButton();
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = PetWalkTokens.of(context);
+
+    return Material(
+      color: Theme.of(context).cardTheme.color ?? Colors.white,
+      elevation: tokens.usesHairline ? 0 : 3,
+      shadowColor: const Color(0x224A3B31),
+      borderRadius: BorderRadius.circular(tokens.buttonRadius),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(tokens.buttonRadius),
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => const RecommendationScreen(),
+        )),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(tokens.buttonRadius),
+            border: tokens.usesHairline
+                ? Border.all(color: tokens.hairline)
+                : null,
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.route, size: 20, color: tokens.accentText),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('오늘 코스 추천받기',
+                        style: Theme.of(context).textTheme.titleSmall),
+                    Text(
+                      '주변 길을 점수화해서 순환 코스를 찾아드려요',
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: tokens.muted),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, size: 20, color: tokens.muted),
             ],
           ),
         ),

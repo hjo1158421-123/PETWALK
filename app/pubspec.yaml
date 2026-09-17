@@ -33,6 +33,9 @@ dependencies:
   # 올리는 건 과하다.
   shared_preferences: ^2.3.2
 
+  # 추천 엔진: Overpass(OSM 도로망) + Open-Elevation(경사도) 호출용.
+  http: ^1.2.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

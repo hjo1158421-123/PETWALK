@@ -12,7 +12,8 @@
 1. **산책 기록** — GPS로 경로를 기록하고, 같은 길을 반복하면 "코스"로 묶어
    이력을 보여 준다. **v1 완료.**
 2. **산책로 추천** — "이 길이 강아지 산책로로 괜찮은가"를 점수화해서 코스를
-   제안한다. **아직 시작 안 함.** 설계는 [docs/추천-설계.md](docs/추천-설계.md).
+   제안한다. **v2(규칙 기반, 앱 프로토타입) 완료.** 설계는
+   [docs/추천-설계.md](docs/추천-설계.md).
 
 추천이 이 앱의 차별점이다. 기록 기능은 그 기반이자 데이터 공급원이다.
 
@@ -27,7 +28,7 @@
 | Android APK 빌드 | 성공 확인 |
 | 웹(Chrome) 실행 | 동작 확인 |
 | 실기기 GPS 기록 | Android 태블릿에서 확인됨 (release APK) |
-| **산책로 추천** | **미착수 — 다음 작업** |
+| 산책로 추천 (앱 프로토타입) | 엔진 완료. **실제 OSM 연동은 이 PC에서 미확인** — 아래 참조 |
 
 ### TODO
 
@@ -40,21 +41,27 @@
       없음 — 견종 기준값이 있을 때는 이제 이 배수들을 곱하지 않는다.
       상세는 [docs/권장산책량-근거.md](docs/권장산책량-근거.md).
 
-`flutter analyze` 0건, `flutter test` 73개 통과 상태를 유지할 것.
+- [ ] **추천 엔진을 실기기(회사 와이파이 아닌 곳)에서 확인할 것.**
+      Overpass API(OSM 도로망)가 이 PC 의 회사 네트워크에서 막혀 있어
+      "산책" 탭 → "오늘 코스 추천받기"를 이 PC에서 끝까지 확인할 수
+      없었다. 파싱·점수화·경로탐색 로직은 fixture 로 테스트했고, 실제
+      화면에서 에러 처리(로딩 → "OSM 서버가 요청을 거부했어요" → 재시도
+      가능 상태 복귀)까지는 확인했다. 실기기에서 진짜 좌표로 코스가
+      나오는지가 아직 안 봤다. 자세한 사정은
+      `lib/services/overpass_service.dart` 상단 주석과
+      [docs/추천-설계.md](docs/추천-설계.md) v2 항목 참조.
 
-## 다음 작업: 추천 엔진
+- [ ] **편의시설·혼잡소음 지표(가중치 25%)가 아직 없다.** 국내
+      공공데이터포털 신청이 필요해 이번 v2 에서는 뺐다 — 지금은 노면·
+      차도분리도·그늘·경사(75%)만 반영한다. `docs/추천-설계.md`
+      "가중 점수" 표 참조.
 
-착수 전에 갈림길이 하나 남아 있다. 사용자에게 확인하고 시작할 것.
+- [ ] **코스 생성 알고리즘이 최적해가 아니다.** Dijkstra 기반 휴리스틱
+      이라 항상 "가장 산책하기 좋은" 루프를 찾는다고 보장 못 한다.
+      백엔드(pgRouting)로 옮길 때 정식 경로 탐색으로 교체해야 하는
+      자리다. `lib/services/route_recommender.dart` 상단 주석 참조.
 
-- **①  백엔드부터** — PostgreSQL + PostGIS + pgRouting, Spring Boot API.
-  설계대로지만 설치와 OSM 데이터 처리가 무겁다. 이 PC에 Postgres도
-  Docker도 없다.
-- **② 앱에서 프로토타입 먼저** — Overpass API로 주변 보행로를 받아 앱에서
-  점수화. 서버 없이 화면으로 바로 검증할 수 있다. 공식이 자리 잡으면
-  그대로 백엔드로 옮긴다.
-
-②를 권한 상태다. 점수 가중치가 실제로 좋은 길을 골라내는지는 눈으로 봐야
-알 수 있고, 백엔드를 다 세운 뒤 "공식이 별로였다"를 발견하면 비용이 크다.
+`flutter analyze` 0건, `flutter test` 119개 통과 상태를 유지할 것.
 
 ## 절대 건드리면 안 되는 것
 
@@ -135,7 +142,9 @@ VS Code 는 F5 → `PETWALK (web-server :8080)`.
 
 ```
 models/      Walk, TrackPoint, Course, Dog, WalkGoal
-data/        breed_catalog.dart  견종 48종 (크기/활동량/단두종)
+  route_segment.dart      추천 엔진 세그먼트 — 좌표·노면·차도분리도·그늘
+  recommended_course.dart 추천 엔진이 만든 순환 코스
+data/        breed_catalog.dart  견종 48종 (크기/활동량/단두종/켄넬클럽 권장시간)
 theme/
   app_theme.dart        1a(포근)/1b(미니멀) 두 안. 토큰만 갈아끼운다
 services/
@@ -147,10 +156,17 @@ services/
   location_service.dart GPS 스트림 + 권한 + 플랫폼별 설정
   simulated_location_service.dart 가짜 GPS. 개발용(kDebugMode)
   theme_controller.dart 고른 테마 보관 + 저장
+  overpass_service.dart      OSM 도로망 가져오기 + 세그먼트 분할
+  elevation_service.dart     Open-Elevation 고도 조회
+  segment_scorer.dart        세그먼트 지표별 채점
+  route_recommender.dart     그래프 구성 + 순환 경로 탐색
+  recommendation_service.dart 위 넷을 하나로 묶는 진입점
   db.dart               스키마 v2 + 마이그레이션
   db_platform*.dart     웹/네이티브 sqflite 분기
-screens/     산책 / 이력 / 상세 / 코스 / 우리 아이 / 프로필 편집
-widgets/     route_map.dart  지도 SDK 교체 지점
+screens/     산책 / 이력 / 상세 / 코스 / 우리 아이 / 프로필 편집 / 코스 추천
+widgets/
+  route_map.dart            지도 SDK 교체 지점 (걸은 기록용)
+  recommended_route_map.dart 추천 코스 지도 표시 (route_map 과는 별개)
 ```
 
 ## 지켜야 할 규칙
@@ -167,7 +183,8 @@ widgets/     route_map.dart  지도 SDK 교체 지점
 
 ## 더 읽을 것
 
-- [docs/추천-설계.md](docs/추천-설계.md) — 추천 엔진 설계. 다음 작업의 기반
+- [docs/추천-설계.md](docs/추천-설계.md) — 추천 엔진 설계. v2(앱 프로토타입)
+  구현 위치와 한계가 "구현 순서" 절에 정리돼 있다
 - [docs/권장산책량-근거.md](docs/권장산책량-근거.md) — 권장 산책량의 숫자와
   문구가 어디서 왔는지. 근거 있는 값과 없는 값을 구분해 두었다
 - [docs/의사결정-기록.md](docs/의사결정-기록.md) — 왜 이렇게 만들었는지.
